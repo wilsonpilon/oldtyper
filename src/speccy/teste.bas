@@ -1,4 +1,4 @@
-#include <doubleSizePrint.bas>
+#include <megalz.bas>
 
 sub gfxBank(bank as uByte)
 
@@ -47,7 +47,14 @@ gb2:
 	DEFB 002,004,030,063,063,063,063,030 ; N - Apple
 	DEFB 004,012,018,054,111,111,118,032 ; O - Cherries
 	end asm
+
+newScreenPacked:
+	asm
+		incbin "teste.bin.mlz"
+	end asm
+
 end sub
+
 
 dim screen(23,30) as uByte
 
@@ -78,7 +85,7 @@ dim initialScreen(23,30) as uByte => { _
 	{00,00,05,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,03,06,00,00}_
 }
 
-sub displayNewSheet()
+sub displayNewSheet_old()
 	gfxBank(0)
 	border 2: paper 0: ink 7: bright 1
 	cls
@@ -104,9 +111,17 @@ sub displayNewSheet()
 	next y
 end sub
 
+sub displayNewSheet()
+	border 0: paper 0: ink 0: bright 1
+	cls
+	dim x,y,currentChar as uByte
+	screen = initialScreen
+	megaLZDepack (@newScreenPacked,16384)
+	ink 7
+end sub
+
 cls
-paper 7
-ink 0
-doubleSizePrint(2,0,"Hello")
-input a$
 displayNewSheet()
+print at 0,0;""
+100 if inkey$ = "" goto 100
+
