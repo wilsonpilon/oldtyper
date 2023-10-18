@@ -1,0 +1,3069 @@
+# file opened: C:\work\oldtyper\src\speccy\demo-toolchain\demo\demo_scroll.z80
+  1   0000              ;
+  2   0000              ; Title:        Scroll Demo
+  3   0000              ; Author:       Dean Belfield
+  4   0000              ; Created:	27/01/2020
+  5   0000              ; Last updated: 06/05/2020
+  6   0000              ;
+  7   0000              ; Requires:	keyboard, sprite_masked, scroll, scroll_attr
+  8   0000              ;
+  9   0000              ; Modinfo:
+ 10   0000              ;
+ 11   0000              ; 03/02/2020:	Tileset information now stored in map data
+ 12   0000              ; 11/04/2020:	Changed call to RND16
+ 13   0000              ; 06/05/2020:	Added colour scrolling
+ 14   0000              ;
+ 15   0000              			DEVICE ZXSPECTRUM48			; sjasmplus directive for SAVESNA at end
+ 16   0000
+ 17   0000              Stack_Top:		EQU 0xFFF0
+ 18   0000              Code_Start:		EQU 0x8000
+ 19   0000
+ 20   0000              			ORG Code_Start
+ 21   8000
+ 22   8000 C3 5B 8C     			JP MAIN					; JP past the included code to MAIN
+ 23   8003
+ 24   8003              			include "../lib/macros.z80"
+# file opened: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/macros.z80
+  1+  8003              ;
+  2+  8003              ; Title:        Macros
+  3+  8003              ; Author:       Dean Belfield
+  4+  8003              ; Created:	06/02/2020
+  5+  8003              ; Last updated: 05/04/2020
+  6+  8003              ;
+  7+  8003              ; Requires:
+  8+  8003              ;
+  9+  8003              ; Modinfo:
+ 10+  8003              ;
+ 11+  8003              ; 05/04/2020:	Local labels now used in macros. Added MIN and MAX
+ 12+  8003
+ 13+  8003              MIN:			MACRO P1			; Get min of P1 and A in A
+ 14+  8003 ~            			CP P1				; Compare A with P1
+ 15+  8003 ~            			JR C, .S1			; Skip if P1 > A
+ 16+  8003 ~            			LD A, P1			; Assign P1 to A
+ 17+  8003 ~            .S1			;
+ 18+  8003              			ENDM
+ 19+  8003
+ 20+  8003              MAX:			MACRO P1			; Get max of P1 and A in A
+ 21+  8003 ~            			CP P1				; Compare A with P1
+ 22+  8003 ~            			JR NC, .S1			; Skip if P1 > A
+ 23+  8003 ~            			LD A, P1			; Assign P1 to A
+ 24+  8003 ~            .S1			;
+ 25+  8003              			ENDM
+ 26+  8003
+ 27+  8003              LD_BC_A:		MACRO
+ 28+  8003 ~            			LD C, A 			; Turn A into 16 bit number
+ 29+  8003 ~            			ADD A, A			; Push sign into carry
+ 30+  8003 ~            			SBC A, A 			; Turn into 0 or -1 (0xFF)
+ 31+  8003 ~            			LD B, A				; Store in MSB
+ 32+  8003              			ENDM
+ 33+  8003
+ 34+  8003              LD_DE_A:		MACRO
+ 35+  8003 ~            			LD E, A
+ 36+  8003 ~            			ADD A, A
+ 37+  8003 ~            			SBC A, A
+ 38+  8003 ~            			LD D, A
+ 39+  8003              			ENDM
+ 40+  8003
+ 41+  8003              LD_HL_A:		MACRO
+ 42+  8003 ~            			LD L, A
+ 43+  8003 ~            			ADD A, A
+ 44+  8003 ~            			SBC A, A
+ 45+  8003 ~            			LD H, A
+ 46+  8003              			ENDM
+ 47+  8003
+ 48+  8003              ADD_HL_A:		MACRO
+ 49+  8003 ~            			ADD A, L
+ 50+  8003 ~            			LD L,A
+ 51+  8003 ~            			JR NC, .S1
+ 52+  8003 ~            			INC H
+ 53+  8003 ~            .S1			;
+ 54+  8003              			ENDM
+ 55+  8003
+ 56+  8003              ADD_DE_A:		MACRO
+ 57+  8003 ~            			ADD A, E
+ 58+  8003 ~            			LD E, A
+ 59+  8003 ~            			JR NC, .S1
+ 60+  8003 ~            			INC D
+ 61+  8003 ~            .S1			;
+ 62+  8003              			ENDM
+ 63+  8003
+ 64+  8003              ADD_BC_A:		MACRO
+ 65+  8003 ~            			ADD A,C
+ 66+  8003 ~            			LD C, A
+ 67+  8003 ~            			JR NC, .S1
+ 68+  8003 ~            			INC B
+ 69+  8003 ~            .S1			;
+ 70+  8003              			ENDM
+ 71+  8003
+ 72+  8003              ADD_BC_A_SIGNED:	MACRO
+ 73+  8003 ~            			OR A
+ 74+  8003 ~            			JP P,.S1
+ 75+  8003 ~            			DEC B
+ 76+  8003 ~            .S1			ADD A, C
+ 77+  8003 ~            			LD C, A
+ 78+  8003 ~            			ADC A, B
+ 79+  8003 ~            			SUB C
+ 80+  8003 ~            			LD B, A
+ 81+  8003              			ENDM
+ 82+  8003
+ 83+  8003              ADD_DE_A_SIGNED:	MACRO
+ 84+  8003 ~            			OR A
+ 85+  8003 ~            			JP P, .S1
+ 86+  8003 ~            			DEC D
+ 87+  8003 ~            .S1			ADD A, E
+ 88+  8003 ~            			LD E, A
+ 89+  8003 ~            			ADC A, D
+ 90+  8003 ~            			SUB E
+ 91+  8003 ~            			LD D, A
+ 92+  8003              			ENDM
+ 93+  8003
+ 94+  8003              ADD_HL_A_SIGNED:	MACRO
+ 95+  8003 ~            			OR A
+ 96+  8003 ~            			JP P, .S1
+ 97+  8003 ~            			DEC H
+ 98+  8003 ~            .S1			ADD A, L
+ 99+  8003 ~            			LD L, A
+100+  8003 ~            			ADC A, H
+101+  8003 ~            			SUB L
+102+  8003 ~            			LD H, A
+103+  8003              			ENDM
+104+  8003
+105+  8003              SUB_HL_BC:		MACRO
+106+  8003 ~            			OR A
+107+  8003 ~            			SBC HL,BC
+108+  8003              			ENDM
+109+  8003
+110+  8003              SUB_HL_DE:		MACRO
+111+  8003 ~            			OR A
+112+  8003 ~            			SBC HL,DE
+113+  8003              			ENDM
+114+  8003
+# file closed: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/macros.z80
+ 25   8003              			include "../lib/keyboard.z80"
+# file opened: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/keyboard.z80
+  1+  8003              ;
+  2+  8003              ; Title:	ZX Spectrum Keyboard Routines
+  3+  8003              ; Author:	Dean Belfield
+  4+  8003              ; Created:	29/07/2011
+  5+  8003              ; Last Updated:	29/07/2011
+  6+  8003              ;
+  7+  8003              ; Requires:
+  8+  8003              ;
+  9+  8003              ; Modinfo:
+ 10+  8003              ;
+ 11+  8003
+ 12+  8003              ; Read the in-game controls
+ 13+  8003              ; HL: The control map
+ 14+  8003              ; Returns:
+ 15+  8003              ;  A: Input flags - 000UDLRF (Up, Down, Left, Right, Fire)
+ 16+  8003              ; Zero flag set if no key pressed
+ 17+  8003              ;
+ 18+  8003 16 05        Read_Controls:		LD D, 5				; Number of controls to check
+ 19+  8005 1E 00        			LD E, 0				; The output flags
+ 20+  8007 0E FE        			LD C,0xFE			; Low is always 0xFE for reading keyboard
+ 21+  8009 46           Read_Controls1:		LD B,(HL)			; Get the keyboard port address
+ 22+  800A 23           			INC HL
+ 23+  800B ED 78        			IN A,(C)			; Read the rows in
+ 24+  800D A6           			AND (HL)			; And with the mask
+ 25+  800E 20 01        			JR NZ, Read_Controls2		; Skip if not pressed (bit is 0)
+ 26+  8010 37           			SCF				; Set C flag
+ 27+  8011 CB 13        Read_Controls2:		RL E				; Rotate the carry flag into E
+ 28+  8013 23           			INC HL
+ 29+  8014 15           			DEC D
+ 30+  8015 20 F2        			JR NZ, Read_Controls1		; Loop
+ 31+  8017 7B           			LD A,E				; Fetch the key flags
+ 32+  8018 A7           			AND A				; Check for 0
+ 33+  8019 C9           			RET
+ 34+  801A
+ 35+  801A
+ 36+  801A              ; As Read_Keyboard, but with debounce
+ 37+  801A              ;
+ 38+  801A CD 27 80     Read_Keyboard_Debounce:	CALL Read_Keyboard		; A debounced versiion - Read the keyboard
+ 39+  801D A7           			AND A				; Quick way to do CP 0
+ 40+  801E 20 FA        			JR NZ, Read_Keyboard_Debounce	; Loop until key released
+ 41+  8020 CD 27 80     1:			CALL Read_Keyboard		; And second loop reading the keyboard
+ 42+  8023 A7           			AND A 				; CP 0
+ 43+  8024 28 FA        			JR Z, 1B			; Loop until key is pressed
+ 44+  8026 C9           			RET
+ 45+  8027
+ 46+  8027              ; Read the keyboard and return an ASCII character code
+ 47+  8027              ; Returns:
+ 48+  8027              ;  A: The character code, or 0 if no key pressed
+ 49+  8027              ; BC: The keyboard port (0x7FFE to 0xFEFE)
+ 50+  8027              ;
+ 51+  8027 21 45 80     Read_Keyboard:		LD HL,Keyboard_Map		; Point HL at the keyboard list
+ 52+  802A 16 08        			LD D,8				; This is the number of ports (rows) to check
+ 53+  802C 0E FE        			LD C,0xFE			; Low is always 0xFE for reading keyboard ports
+ 54+  802E 46           Read_Keyboard_0:	LD B,(HL)			; Get the keyboard port address
+ 55+  802F 23           			INC HL				; Increment to keyboard list of table
+ 56+  8030 ED 78        			IN A,(C)			; Read the row of keys in
+ 57+  8032 E6 1F        			AND 0x1F			; We are only interested in the first five bits
+ 58+  8034 1E 05        			LD E,5				; This is the number of keys in the row
+ 59+  8036 CB 3F        Read_Keyboard_1:	SRL A				; Shift A right; bit 0 sets carry bit
+ 60+  8038 30 09        			JR NC,Read_Keyboard_2		; If the bit is 0, we've found our key
+ 61+  803A 23           			INC HL				; Go to next table address
+ 62+  803B 1D           			DEC E				; Decrement key loop counter
+ 63+  803C 20 F8        			JR NZ,Read_Keyboard_1		; Loop around until this row finished
+ 64+  803E 15           			DEC D				; Decrement row loop counter
+ 65+  803F 20 ED        			JR NZ,Read_Keyboard_0		; Loop around until we are done
+ 66+  8041 A7           			AND A				; Clear A (no key found)
+ 67+  8042 C9           			RET
+ 68+  8043 7E           Read_Keyboard_2:       	LD A,(HL)			; We've found a key at this point; fetch the character code!
+ 69+  8044 C9           			RET
+ 70+  8045
+ 71+  8045 FE 23 5A 58  Keyboard_Map:		DB 0xFE,"#","Z","X","C","V"
+ 71+  8049 43 56
+ 72+  804B FD 41 53 44  			DB 0xFD,"A","S","D","F","G"
+ 72+  804F 46 47
+ 73+  8051 FB 51 57 45  			DB 0xFB,"Q","W","E","R","T"
+ 73+  8055 52 54
+ 74+  8057 F7 31 32 33  			DB 0xF7,"1","2","3","4","5"
+ 74+  805B 34 35
+ 75+  805D EF 30 39 38  			DB 0xEF,"0","9","8","7","6"
+ 75+  8061 37 36
+ 76+  8063 DF 50 4F 49  			DB 0xDF,"P","O","I","U","Y"
+ 76+  8067 55 59
+ 77+  8069 BF 23 4C 4B  			DB 0xBF,"#","L","K","J","H"
+ 77+  806D 4A 48
+ 78+  806F 7F 20 23 4D  			DB 0x7F," ","#","M","N","B"
+ 78+  8073 4E 42
+ 79+  8075
+ 80+  8075 FB 01        Input_Custom:		DB 0xFB, %00000001		; Q (Up)
+ 81+  8077 FD 01        			DB 0xFD, %00000001		; A (Down)
+ 82+  8079 DF 02        			DB 0xDF, %00000010		; O (Left)
+ 83+  807B DF 01        			DB 0xDF, %00000001		; P (Right)
+ 84+  807D 7F 01        			DB 0x7F, %00000001		; Space (Fire)
+ 85+  807F
+# file closed: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/keyboard.z80
+ 26   807F              			include "../lib/sprite_masked.z80"
+# file opened: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/sprite_masked.z80
+  1+  807F              ;
+  2+  807F              ; Title:	ZX Spectrum 48K Sprite Routines
+  3+  807F              ; Author:	Dean Belfield
+  4+  807F              ; Created:	29/01/2020
+  5+  807F              ; Last Updated:	09/02/2020
+  6+  807F              ;
+  7+  807F              ; Requires:	output.asm
+  8+  807F              ;
+  9+  807F              ; Modinfo:
+ 10+  807F              ;
+ 11+  807F              ; 03/02/2020:	Sprite width and height now stored in sprite table
+ 12+  807F              ; 09/02/2020:	Added Get_Next_Sprite
+ 13+  807F
+ 14+  807F              INITIALISE_SPRITE:	MACRO p_X, p_Y, p_IMAGE, p_LOGIC
+ 15+  807F ~            			LD (IY+Sprite_X), p_X
+ 16+  807F ~            			LD (IY+Sprite_Y), p_Y
+ 17+  807F ~            			LD (IY+Sprite_Logic+0), low  p_LOGIC
+ 18+  807F ~            			LD (IY+Sprite_Logic+1), high p_LOGIC
+ 19+  807F ~            			LD (IY+Sprite_Image+0), low  p_IMAGE
+ 20+  807F ~            			LD (IY+Sprite_Image+1), high p_IMAGE
+ 21+  807F              			ENDM
+ 22+  807F
+ 23+  807F              ; This routine clears the sprite logic table
+ 24+  807F              ;
+ 25+  807F DD 21 4B 82  Clear_Sprite_Slots:	LD IX, Sprite_Data
+ 26+  8083 11 0C 00     			LD DE, Sprite_Data_Block_Size
+ 27+  8086 06 10        			LD B, Sprite_Max
+ 28+  8088 DD 36 05 00  1:			LD (IX+Sprite_Logic+1), 0
+ 29+  808C DD 19        			ADD IX, DE
+ 30+  808E 10 F8        			DJNZ 1B
+ 31+  8090 C9           			RET
+ 32+  8091
+ 33+  8091              ; This routine goes through the sprite logic table and finds the next available
+ 34+  8091              ; slot
+ 35+  8091              ; Returns
+ 36+  8091              ;  A: Z if slot found, NZ if no more slote available
+ 37+  8091              ; IY: Address of sprite slot (usually called from logic, which uses IX)
+ 38+  8091              ;
+ 39+  8091 FD 21 4B 82  Get_Sprite_Slot:	LD IY, Sprite_Data
+ 40+  8095 11 0C 00     			LD DE, Sprite_Data_Block_Size
+ 41+  8098 06 10        			LD B, Sprite_Max
+ 42+  809A FD 7E 05     1:			LD A, (IY+Sprite_Logic+1)
+ 43+  809D A7           			AND A
+ 44+  809E C8           			RET Z
+ 45+  809F FD 19        			ADD IY, DE
+ 46+  80A1 10 F7        			DJNZ 1B
+ 47+  80A3 C9           			RET
+ 48+  80A4
+ 49+  80A4              ; Scroll adjust sprites
+ 50+  80A4              ; Moves sprites in opposite direction
+ 51+  80A4              ; A - Scroll offset (as passed to Scroll_Move)
+ 52+  80A4              ;
+ 53+  80A4 FD 21 4B 82  Scroll_Adjust_Sprites:	LD IY, Sprite_Data
+ 54+  80A8 11 0C 00     			LD DE, Sprite_Data_Block_Size
+ 55+  80AB 06 10        			LD B, Sprite_Max
+ 56+  80AD ED 44        			NEG
+ 57+  80AF 4F           			LD C, A
+ 58+  80B0 FD 7E 05     1:			LD A, (IY+Sprite_Logic+1)
+ 59+  80B3 A7           			AND A
+ 60+  80B4 28 07        			JR Z, 2F
+ 61+  80B6 FD 7E 03     			LD A, (IY+Sprite_Y)
+ 62+  80B9 81           			ADD A, C
+ 63+  80BA FD 77 03     			LD (IY+Sprite_Y), A
+ 64+  80BD FD 19        2:			ADD IY, DE
+ 65+  80BF 10 EF        			DJNZ 1B
+ 66+  80C1 C9           			RET
+ 67+  80C2
+ 68+  80C2              ; This routine goes through the sprite logic table and runs the logic routine for each sprite
+ 69+  80C2              ;
+ 70+  80C2 ED 73 D2 80  Handle_Sprites: 	LD (Handle_Sprites_SP + 1), SP		; Clear th sort table
+ 71+  80C6 31 4B 83     			LD SP,Sprite_Sort_Table_End		; Set it to the end of the self modifying code area
+ 72+  80C9 06 20        			LD B,Sprite_Sort_Table_Size 		; Number of buckets to clear
+ 73+  80CB 11 00 00     			LD DE,0					; We're zeroing the memory
+ 74+  80CE D5           1:			PUSH DE					; Push 4 words into the area
+ 75+  80CF 10 FD        			DJNZ 1B
+ 76+  80D1 31 00 00     Handle_Sprites_SP:	LD SP,0					; Restore the stack pointer
+ 77+  80D4 DD 21 4B 82  			LD IX,Sprite_Data			; The sprite data block
+ 78+  80D8 06 10        			LD B,Sprite_Max				; The number of sprites to handle
+ 79+  80DA DD 7E 05     2:			LD A,(IX+Sprite_Logic+1)		; Get the high address of the handler routine
+ 80+  80DD A7           			AND A					; If it is zero
+ 81+  80DE 28 17        			JR Z,3F					; Then don't process the sprite
+ 82+  80E0 C5           			PUSH BC					; Push the loop counter
+ 83+  80E1 DD E5        			PUSH IX					; Push the index register
+ 84+  80E3 21 EC 80     			LD HL,Handle_Sprites_RA			; Set to the return address
+ 85+  80E6 E5           			PUSH HL					; Push the return address (to simulate a call)
+ 86+  80E7 67           			LD H,A					; Set H to the previously fetched high address of handler routine
+ 87+  80E8 DD 6E 04     			LD L,(IX+Sprite_Logic)			; Fetch the low address of the handler routine
+ 88+  80EB E9           			JP (HL)					; Jump to the handler. Return address is stacked, so RET from that routine
+ 89+  80EC DD E1        Handle_Sprites_RA:	POP IX					; Pop the index register
+ 90+  80EE DD 7E 03     			LD A, (IX+Sprite_Y)			; Get the Y coordinate
+ 91+  80F1 FE BF        			CP 191					; Check for off screen (temporary value)
+ 92+  80F3 DC FF 80     			CALL C, Sort_Sprite			; Sort the sprite
+ 93+  80F6 C1           			POP BC					; Pop the loop counter
+ 94+  80F7 11 0C 00     3:			LD DE,Sprite_Data_Block_Size		; Go to next sprite data block
+ 95+  80FA DD 19        			ADD IX,DE
+ 96+  80FC 10 DC        			DJNZ 2B					; Loop until all sprites have been processed
+ 97+  80FE C9           			RET
+ 98+  80FF
+ 99+  80FF              ; Create the sorted table of sprites
+100+  80FF              ; A: Y address of sprite
+101+  80FF              ;
+102+  80FF 21 0C 83     Sort_Sprite:		LD HL,Sprite_Sort_Table + 1		; Address of the sort table
+103+  8102 E6 F0        			AND 0xF0				; Get the top 16 bits
+104+  8104 CB 3F        			SRL A					; Divide by 8
+105+  8106 CB 3F        			SRL A
+106+  8108 CB 3F        			SRL A
+107+  810A 4F           			LD C,A					; Stick in BC
+108+  810B 06 00        			LD B,0
+109+  810D 09           			ADD HL,BC				; Point it to the correct bucket
+110+  810E 7E           Sort_Sprite_1:		LD A,(HL)				; See if bucket clear
+111+  810F A7           			AND A					; Check for A=0
+112+  8110 28 04        			JR Z,Sort_Sprite_2			; If zero, then bucket empty - jump to insert code
+113+  8112 23           			INC HL
+114+  8113 23           			INC HL
+115+  8114 18 F8        			JR Sort_Sprite_1
+116+  8116 DD 7C        Sort_Sprite_2:		LD A,IXH
+117+  8118 77           			LD (HL),A				; Store the sprite data address in the bucket
+118+  8119 2B           			DEC HL
+119+  811A DD 7D        			LD A,IXL
+120+  811C 77           			LD (HL),A
+121+  811D C9           			RET
+122+  811E
+123+  811E              ; Render the sprites
+124+  811E              ;
+125+  811E FD 21 0B 83  Render_Sprites:		LD IY,Sprite_Sort_Table
+126+  8122 06 20        			LD B,Sprite_Sort_Table_Size
+127+  8124 C5           Render_Sprites_0:	PUSH BC
+128+  8125 FD 7E 01     			LD A,(IY+1)
+129+  8128 A7           			AND A
+130+  8129 28 16        			JR Z,Render_Sprites_1
+131+  812B DD 67        			LD IXH,A
+132+  812D FD 7E 00     			LD A,(IY+0)
+133+  8130 DD 6F        			LD IXL,A
+134+  8132 DD 5E 00     			LD E,(IX+Sprite_Image)
+135+  8135 DD 56 01     			LD D,(IX+Sprite_Image+1)
+136+  8138 DD 4E 02     			LD C,(IX+Sprite_X)
+137+  813B DD 46 03     			LD B,(IX+Sprite_Y)
+138+  813E CD 49 81     			CALL Render_Sprite
+139+  8141 C1           Render_Sprites_1:	POP BC
+140+  8142 FD 23        			INC IY
+141+  8144 FD 23        			INC IY
+142+  8146 10 DC        			DJNZ Render_Sprites_0
+143+  8148 C9           			RET
+144+  8149
+145+  8149              ; This routine draws a single sprite; again, work in progress. No off-screen clipping or masking yet
+146+  8149              ; B = Y pixel postion
+147+  8149              ; C = X pixel position
+148+  8149              ; DE = Address of sprite table - 20 bytes
+149+  8149              ; - width (1 byte)        : width of sprite in characters - only supports 2 at the moment
+150+  8149              ; - height (1 byte)       : sprite height in pixels
+151+  8149              ; - definitions (8 words) : one word per pre-shifted sprite definition
+152+  8149              ;
+153+  8149 1A           Render_Sprite:		LD A,(DE)				; The sprite width
+154+  814A 13           			INC DE
+155+  814B FE 03        			CP 3
+156+  814D CA F3 81     			JP Z, Render_Sprite_24px
+157+  8150 FE 02        			CP 2
+158+  8152 CA A2 81     			JP Z, Render_Sprite_16px
+159+  8155 FE 01        			CP 1
+160+  8157 C0           			RET NZ
+161+  8158
+162+  8158 1A           Render_Sprite_8px:	LD A,(DE)				; Get the sprite height
+163+  8159 13           			INC DE
+164+  815A 32 7F 81     			LD (Render_Sprite_8px_H + 1), A		; Store H for later
+165+  815D              ;
+166+  815D              ; Y clipping
+167+  815D              ;
+168+  815D 80           			ADD A, B 				; Add Y to it
+169+  815E FE C0        			CP 192 					; Compare with screen H
+170+  8160 38 08        			JR C, 0F				; If entirely on screen, then output
+171+  8162 78           			LD A, B
+172+  8163 ED 44        			NEG
+173+  8165 C6 C0        			ADD A, 192
+174+  8167 32 7F 81     			LD (Render_Sprite_8px_H + 1), A		; Store the clipped height
+175+  816A
+176+  816A CD A7 83     0:			CALL Get_Pixel_Address			; HL = Screen Address, A = Pixel in Row
+177+  816D EB           			EX DE,HL				; HL = Sprite, DE = Screen
+178+  816E CB 27        			SLA A					; Multiply pixel shift by 2
+179+  8170 06 00        			LD B,0
+180+  8172 4F           			LD C,A
+181+  8173 09           			ADD HL,BC				; Add base address of sprite table
+182+  8174 7E           			LD A,(HL)				; Get sprite definition address
+183+  8175 23           			INC HL
+184+  8176 66           			LD H,(HL)
+185+  8177 6F           			LD L,A					; HL = Sprite, DE = Screen
+186+  8178 ED 73 9F 81  			LD (Render_Sprite_8px_SP+ 1), SP	; Preserve the stack pointer
+187+  817C F9           			LD SP, HL				; Store in SP
+188+  817D EB           			EX DE,HL				; HL = Screen, SP = Sprite
+189+  817E 06 10        Render_Sprite_8px_H:	LD B, 16				; Height of sprite, in pixels
+190+  8180 D1           1:			POP DE					; Fetch first word of sprite (E = mask, D = sprite)
+191+  8181 7E           			LD A,(HL)				; Fetch screen data
+192+  8182 A3           			AND E					; AND with mask
+193+  8183 B2           			OR D					; OR with data
+194+  8184 77           			LD (HL),A				; Store back in screen
+195+  8185 2C           			INC L					; To next screen location
+196+  8186 D1           			POP DE					; And a third time...
+197+  8187 7E           			LD A,(HL)
+198+  8188 A3           			AND E
+199+  8189 B2           			OR D
+200+  818A 77           			LD (HL), A
+201+  818B 2D           			DEC L
+202+  818C 24           			INC H					; Drop down to the next pixel line of the screen
+203+  818D 7C           			LD A, H
+204+  818E E6 07        			AND 0x07
+205+  8190 20 0A        			JR NZ, 2F
+206+  8192 7D           			LD A, L
+207+  8193 C6 20        			ADD A, 32
+208+  8195 6F           			LD L, A
+209+  8196 38 04        			JR C, 2F
+210+  8198 7C           			LD A, H
+211+  8199 D6 08        			SUB 8
+212+  819B 67           			LD H,A
+213+  819C 10 E2        2:			DJNZ 1B
+214+  819E 31 00 00     Render_Sprite_8px_SP:	LD SP,0					; Restore the stack pointer
+215+  81A1 C9           			RET
+216+  81A2
+217+  81A2 1A           Render_Sprite_16px:	LD A,(DE)				; Get the sprite height
+218+  81A3 13           			INC DE
+219+  81A4 32 C9 81     			LD (Render_Sprite_16px_H + 1), A	; Store H for later
+220+  81A7              ;
+221+  81A7              ; Y clipping
+222+  81A7              ;
+223+  81A7 80           			ADD A, B 				; Add Y to it
+224+  81A8 FE C0        			CP 192 					; Compare with screen H
+225+  81AA 38 08        			JR C, 0F				; If entirely on screen, then output
+226+  81AC 78           			LD A, B
+227+  81AD ED 44        			NEG
+228+  81AF C6 C0        			ADD A, 192
+229+  81B1 32 C9 81     			LD (Render_Sprite_16px_H + 1), A	; Store the clipped height
+230+  81B4
+231+  81B4 CD A7 83     0:			CALL Get_Pixel_Address			; HL = Screen Address, A = Pixel in Row
+232+  81B7 EB           			EX DE,HL				; HL = Sprite, DE = Screen
+233+  81B8 CB 27        			SLA A					; Multiply pixel shift by 2
+234+  81BA 06 00        			LD B,0
+235+  81BC 4F           			LD C,A
+236+  81BD 09           			ADD HL,BC				; Add base address of sprite table
+237+  81BE 7E           			LD A,(HL)				; Get sprite definition address
+238+  81BF 23           			INC HL
+239+  81C0 66           			LD H,(HL)
+240+  81C1 6F           			LD L,A					; HL = Sprite, DE = Screen
+241+  81C2 ED 73 F0 81  			LD (Render_Sprite_16px_SP+ 1), SP	; Preserve the stack pointer
+242+  81C6 F9           			LD SP, HL				; Store in SP
+243+  81C7 EB           			EX DE,HL				; HL = Screen, SP = Sprite
+244+  81C8 06 10        Render_Sprite_16px_H:	LD B, 16				; Height of sprite, in pixels
+245+  81CA              1:			DUP 2
+246+  81CA D1          >			POP DE					; Fetch first word of sprite (E = mask, D = sprite)
+247+  81CB 7E          >			LD A,(HL)				; Fetch screen data
+248+  81CC A3          >			AND E					; AND with mask
+249+  81CD B2          >			OR D					; OR with data
+250+  81CE 77          >			LD (HL),A				; Store back in screen
+251+  81CF 2C          >			INC L					; To next screen location
+246+  81D0 D1          >			POP DE					; Fetch first word of sprite (E = mask, D = sprite)
+247+  81D1 7E          >			LD A,(HL)				; Fetch screen data
+248+  81D2 A3          >			AND E					; AND with mask
+249+  81D3 B2          >			OR D					; OR with data
+250+  81D4 77          >			LD (HL),A				; Store back in screen
+251+  81D5 2C          >			INC L					; To next screen location
+252+  81D6              			EDUP
+253+  81D6 D1           			POP DE					; And a third time...
+254+  81D7 7E           			LD A,(HL)
+255+  81D8 A3           			AND E
+256+  81D9 B2           			OR D
+257+  81DA 77           			LD (HL), A
+258+  81DB 2D           			DEC L					; Go back to original screen address
+259+  81DC 2D           			DEC L
+260+  81DD 24           			INC H					; Drop down to the next pixel line of the screen
+261+  81DE 7C           			LD A, H
+262+  81DF E6 07        			AND 0x07
+263+  81E1 20 0A        			JR NZ, 2F
+264+  81E3 7D           			LD A, L
+265+  81E4 C6 20        			ADD A, 32
+266+  81E6 6F           			LD L, A
+267+  81E7 38 04        			JR C, 2F
+268+  81E9 7C           			LD A, H
+269+  81EA D6 08        			SUB 8
+270+  81EC 67           			LD H,A
+271+  81ED 10 DB        2:			DJNZ 1B
+272+  81EF 31 00 00     Render_Sprite_16px_SP:	LD SP,0					; Restore the stack pointer
+273+  81F2 C9           			RET
+274+  81F3
+275+  81F3 1A           Render_Sprite_24px:	LD A,(DE)				; Get the sprite height
+276+  81F4 13           			INC DE
+277+  81F5 32 1A 82     			LD (Render_Sprite_24px_H + 1), A	; Store H for later
+278+  81F8              ;
+279+  81F8              ; Y clipping
+280+  81F8              ;
+281+  81F8 80           			ADD A, B 				; Add Y to it
+282+  81F9 FE C0        			CP 192 					; Compare with screen H
+283+  81FB 38 08        			JR C, 0F				; If entirely on screen, then output
+284+  81FD 78           			LD A, B
+285+  81FE ED 44        			NEG
+286+  8200 C6 C0        			ADD A, 192
+287+  8202 32 1A 82     			LD (Render_Sprite_24px_H + 1), A	; Store the clipped height
+288+  8205
+289+  8205 CD A7 83     0:			CALL Get_Pixel_Address			; HL = Screen Address, A = Pixel in Row
+290+  8208 EB           			EX DE,HL				; HL = Sprite, DE = Screen
+291+  8209 CB 27        			SLA A					; Multiply pixel shift by 2
+292+  820B 06 00        			LD B,0
+293+  820D 4F           			LD C,A
+294+  820E 09           			ADD HL,BC				; Add base address of sprite table
+295+  820F 7E           			LD A,(HL)				; Get sprite definition address
+296+  8210 23           			INC HL
+297+  8211 66           			LD H,(HL)
+298+  8212 6F           			LD L,A					; HL = Sprite, DE = Screen
+299+  8213 ED 73 48 82  			LD (Render_Sprite_24px_SP+ 1), SP	; Preserve the stack pointer
+300+  8217 F9           			LD SP, HL				; Store in SP
+301+  8218 EB           			EX DE,HL				; HL = Screen, SP = Sprite
+302+  8219 06 10        Render_Sprite_24px_H:	LD B, 16				; Height of sprite, in pixels
+303+  821B              1:			DUP 3
+304+  821B D1          >			POP DE					; Fetch first word of sprite (E = mask, D = sprite)
+305+  821C 7E          >			LD A,(HL)				; Fetch screen data
+306+  821D A3          >			AND E					; AND with mask
+307+  821E B2          >			OR D					; OR with data
+308+  821F 77          >			LD (HL),A				; Store back in screen
+309+  8220 2C          >			INC L					; To next screen location
+304+  8221 D1          >			POP DE					; Fetch first word of sprite (E = mask, D = sprite)
+305+  8222 7E          >			LD A,(HL)				; Fetch screen data
+306+  8223 A3          >			AND E					; AND with mask
+307+  8224 B2          >			OR D					; OR with data
+308+  8225 77          >			LD (HL),A				; Store back in screen
+309+  8226 2C          >			INC L					; To next screen location
+304+  8227 D1          >			POP DE					; Fetch first word of sprite (E = mask, D = sprite)
+305+  8228 7E          >			LD A,(HL)				; Fetch screen data
+306+  8229 A3          >			AND E					; AND with mask
+307+  822A B2          >			OR D					; OR with data
+308+  822B 77          >			LD (HL),A				; Store back in screen
+309+  822C 2C          >			INC L					; To next screen location
+310+  822D              			EDUP
+311+  822D D1           			POP DE					; And a third time...
+312+  822E 7E           			LD A,(HL)
+313+  822F A3           			AND E
+314+  8230 B2           			OR D
+315+  8231 77           			LD (HL), A
+316+  8232 2D           			DEC L					; Go back to original screen address
+317+  8233 2D           			DEC L
+318+  8234 2D           			DEC L
+319+  8235 24           			INC H					; Drop down to the next pixel line of the screen
+320+  8236 7C           			LD A, H
+321+  8237 E6 07        			AND 0x07
+322+  8239 20 0A        			JR NZ, 2F
+323+  823B 7D           			LD A, L
+324+  823C C6 20        			ADD A, 32
+325+  823E 6F           			LD L, A
+326+  823F 38 04        			JR C, 2F
+327+  8241 7C           			LD A, H
+328+  8242 D6 08        			SUB 8
+329+  8244 67           			LD H,A
+330+  8245 10 D4        2:			DJNZ 1B
+331+  8247 31 00 00     Render_Sprite_24px_SP:	LD SP,0					; Restore the stack pointer
+332+  824A C9           			RET
+333+  824B
+334+  824B              Sprite_Image:		EQU 0x00
+335+  824B              Sprite_X:		EQU 0x02
+336+  824B              Sprite_Y:		EQU 0x03
+337+  824B              Sprite_Logic:		EQU 0x04
+338+  824B              Sprite_Flags:		EQU 0x06
+339+  824B              Sprite_Data_1:		EQU 0x07
+340+  824B              Sprite_Data_2:		EQU 0x08
+341+  824B              Sprite_Data_3:		EQU 0x09
+342+  824B              Sprite_Data_4:		EQU 0x0A
+343+  824B              Sprite_Data_5:		EQU 0x0B
+344+  824B
+345+  824B              Sprite_Data_Block_Size:	EQU 0x0C
+346+  824B              Sprite_Max:		EQU 0x10
+347+  824B              Sprite_Data_Len:	EQU Sprite_Max * Sprite_Data_Block_Size
+348+  824B              Sprite_Sort_Table_Size:	EQU Sprite_Max * 2
+349+  824B              Sprite_Sort_Table_Len:	EQU Sprite_Sort_Table_Size * 2
+350+  824B
+351+  824B 00 00 00...  Sprite_Data:		DEFS Sprite_Data_Len, 0
+352+  830B 00 00 00...  Sprite_Sort_Table:	DEFS Sprite_Sort_Table_Len, 0
+353+  834B              Sprite_Sort_Table_End:	EQU  $
+354+  834B
+# file closed: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/sprite_masked.z80
+ 27   834B              			include "../lib/output.z80"
+# file opened: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/output.z80
+  1+  834B              ;
+  2+  834B              ; Title:	ZX Spectrum Standard Output Routines
+  3+  834B              ; Author:	Dean Belfield
+  4+  834B              ; Created:	29/07/2011
+  5+  834B              ; Last Updated:	08/02/2020
+  6+  834B              ;
+  7+  834B              ; Requires:
+  8+  834B              ;
+  9+  834B              ; Modinfo:
+ 10+  834B              ;
+ 11+  834B              ; 02/07/2012:	Added Pixel_Address_Down and Pixel_Address_Up routines
+ 12+  834B              ; 04/07/2012:	Moved Clear_Screen to Screen_Buffer
+ 13+  834B              ; 08/02/2010:	Added Print_BC
+ 14+  834B              ;		Moved Clear_Screen into here (originally in screen_buffer.z80)
+ 15+  834B              ;		All output routines refactored to use HL for screen address
+ 16+  834B              ;		Added Fill_Attr routine
+ 17+  834B              ;
+ 18+  834B
+ 19+  834B              ; Simple clear-screen routine
+ 20+  834B              ; Uses LDIR to block clear memory
+ 21+  834B              ; A:  Colour to clear attribute block of memory with
+ 22+  834B              ;
+ 23+  834B 21 00 40     Clear_Screen:		LD HL,16384			; Start address of screen bitmap
+ 24+  834E 11 01 40     			LD DE,16385			; Address + 1
+ 25+  8351 01 00 18     			LD BC,6144			; Length of bitmap memory to clear
+ 26+  8354 36 00        			LD (HL),0			; Set the first byte to 0
+ 27+  8356 ED B0        			LDIR				; Copy this byte to the second, and so on
+ 28+  8358 01 FF 02     			LD BC,767			; Length of attribute memory, less one to clear
+ 29+  835B 77           			LD (HL),A			; Set the first byte to A
+ 30+  835C ED B0        			LDIR				; Copy this byte to the second, and so on
+ 31+  835E C9           			RET
+ 32+  835F
+ 33+  835F              ; Fill a box of the screen with a solid colour
+ 34+  835F              ;  A: The colour
+ 35+  835F              ; HL: Address in the attribute map
+ 36+  835F              ;  C: Width
+ 37+  835F              ;  B: Height
+ 38+  835F              ;
+ 39+  835F 11 20 00     Fill_Attr:		LD DE,32
+ 40+  8362 E5           1:			PUSH HL
+ 41+  8363 C5           			PUSH BC
+ 42+  8364 77           2:			LD (HL), A
+ 43+  8365 2C           			INC L
+ 44+  8366 0D           			DEC C
+ 45+  8367 20 FB        			JR NZ, 2B
+ 46+  8369 C1           			POP BC
+ 47+  836A E1           			POP HL
+ 48+  836B 19           			ADD HL,DE
+ 49+  836C 10 F4        			DJNZ 1B
+ 50+  836E C9           			RET
+ 51+  836F
+ 52+  836F              ; Print String Data
+ 53+  836F              ; First two bytes of string contain X and Y char position, then the string
+ 54+  836F              ; Individual strings are terminated with 0xFE
+ 55+  836F              ; End of data is terminated with 0xFF
+ 56+  836F              ; IX: Address of string
+ 57+  836F              ;
+ 58+  836F DD 6E 00     Print_String:		LD L,(IX+0)			; Fetch the X coordinate
+ 59+  8372 DD 23        			INC IX				; Increase HL to the next memory location
+ 60+  8374 DD 66 00     			LD H,(IX+0)			; Fetch the Y coordinate
+ 61+  8377 DD 23        			INC IX				; Increase HL to the next memory location
+ 62+  8379 CD 8D 83     			CALL Get_Char_Address		; Calculate the screen address (in DE)
+ 63+  837C DD 7E 00     Print_String_0:		LD A,(IX)			; Fetch the character to print
+ 64+  837F DD 23        			INC IX				; Increase HL to the next character
+ 65+  8381 FE FE        			CP 0xFE				; Compare with 0xFE
+ 66+  8383 28 EA        			JR Z,Print_String		; If it is equal to 0xFE then loop back to print next string
+ 67+  8385 D0           			RET NC				; If it is greater or equal to (carry bit set) then
+ 68+  8386 CD 20 84     			CALL Print_Char			; Print the character
+ 69+  8389 2C           			INC L				; Go to the next screen address
+ 70+  838A 18 F0        			JR Print_String_0		; Loop back to print next character
+ 71+  838C C9           			RET
+ 72+  838D
+ 73+  838D              ; Get screen address
+ 74+  838D              ; H = Y character position
+ 75+  838D              ; L = X character position
+ 76+  838D              ; Returns address in HL
+ 77+  838D              ;
+ 78+  838D 7C           Get_Char_Address:	LD A,H
+ 79+  838E E6 07        			AND %00000111
+ 80+  8390 1F           			RRA
+ 81+  8391 1F           			RRA
+ 82+  8392 1F           			RRA
+ 83+  8393 1F           			RRA
+ 84+  8394 B5           			OR L
+ 85+  8395 6F           			LD L,A
+ 86+  8396 7C           			LD A,H
+ 87+  8397 E6 18        			AND %00011000
+ 88+  8399 F6 40        			OR %01000000
+ 89+  839B 67           			LD H,A
+ 90+  839C C9           			RET				; Returns screen address in HL
+ 91+  839D
+ 92+  839D              ; Move HL down one character line
+ 93+  839D              ;
+ 94+  839D 7D           Char_Address_Down:	LD A, L
+ 95+  839E C6 20        			ADD A, 32
+ 96+  83A0 6F           			LD L, A
+ 97+  83A1 D0           			RET NC
+ 98+  83A2 7C           			LD A, H
+ 99+  83A3 C6 08        			ADD A, 8
+100+  83A5 67           			LD H, A
+101+  83A6 C9           			RET
+102+  83A7
+103+  83A7              ; Get screen address
+104+  83A7              ; B = Y pixel position
+105+  83A7              ; C = X pixel position
+106+  83A7              ; Returns address in HL and pixel position within character in A
+107+  83A7              ;
+108+  83A7 78           Get_Pixel_Address:	LD A,B				; Calculate Y2,Y1,Y0
+109+  83A8 E6 07        			AND %00000111			; Mask out unwanted bits
+110+  83AA F6 40        			OR %01000000			; Set base address of screen
+111+  83AC 67           			LD H,A				; Store in H
+112+  83AD 78           			LD A,B				; Calculate Y7,Y6
+113+  83AE 1F           			RRA				; Shift to position
+114+  83AF 1F           			RRA
+115+  83B0 1F           			RRA
+116+  83B1 E6 18        			AND %00011000			; Mask out unwanted bits
+117+  83B3 B4           			OR H				; OR with Y2,Y1,Y0
+118+  83B4 67           			LD H,A				; Store in H
+119+  83B5 78           			LD A,B				; Calculate Y5,Y4,Y3
+120+  83B6 17           			RLA				; Shift to position
+121+  83B7 17           			RLA
+122+  83B8 E6 E0        			AND %11100000			; Mask out unwanted bits
+123+  83BA 6F           			LD L,A				; Store in L
+124+  83BB 79           			LD A,C				; Calculate X4,X3,X2,X1,X0
+125+  83BC 1F           			RRA				; Shift into position
+126+  83BD 1F           			RRA
+127+  83BE 1F           			RRA
+128+  83BF E6 1F        			AND %00011111			; Mask out unwanted bits
+129+  83C1 B5           			OR L				; OR with Y5,Y4,Y3
+130+  83C2 6F           			LD L,A				; Store in L
+131+  83C3 79           			LD A,C
+132+  83C4 E6 07        			AND 7
+133+  83C6 C9           			RET
+134+  83C7
+135+  83C7              ; Move HL down one pixel line
+136+  83C7              ;
+137+  83C7 24           Pixel_Address_Down:	INC H				; Go down onto the next pixel line
+138+  83C8 7C           			LD A,H				; Check if we have gone onto next character boundary
+139+  83C9 E6 07        			AND 7
+140+  83CB C0           			RET NZ				; No, so skip the next bit
+141+  83CC 7D           			LD A,L				; Go onto the next character line
+142+  83CD C6 20        			ADD A,32
+143+  83CF 6F           			LD L,A
+144+  83D0 D8           			RET C				; Check if we have gone onto next third of screen
+145+  83D1 7C           			LD A,H				; Yes, so go onto next third
+146+  83D2 D6 08        			SUB 8
+147+  83D4 67           			LD H,A
+148+  83D5 C9           			RET
+149+  83D6
+150+  83D6              ; Move HL up one pixel line
+151+  83D6              ;
+152+  83D6 25           Pixel_Address_Up:	DEC H				; Go up onto the next pixel line
+153+  83D7 7C           			LD A,H				; Check if we have gone onto the next character boundary
+154+  83D8 E6 07        			AND 7
+155+  83DA FE 07        			CP 7
+156+  83DC C0           			RET NZ
+157+  83DD 7D           			LD A,L
+158+  83DE D6 20        			SUB 32
+159+  83E0 6F           			LD L,A
+160+  83E1 D8           			RET C
+161+  83E2 7C           			LD A,H
+162+  83E3 C6 08        			ADD A,8
+163+  83E5 67           			LD H,A
+164+  83E6 C9           			RET
+165+  83E7
+166+  83E7              ; Print a single BCD value
+167+  83E7              ;  A: Character to print
+168+  83E7              ; HL: Screen address to print character at
+169+  83E7              ;
+170+  83E7 DD 7E 00     Print_BCD_8		LD A, (IX)
+170+  83EA DD 23          INC IX
+170+  83EC CD 04 84       CALL Print_BCD
+171+  83EF DD 7E 00     Print_BCD_6		LD A, (IX)
+171+  83F2 DD 23          INC IX
+171+  83F4 CD 04 84       CALL Print_BCD
+172+  83F7 DD 7E 00     Print_BCD_4		LD A, (IX)
+172+  83FA DD 23          INC IX
+172+  83FC CD 04 84       CALL Print_BCD
+173+  83FF DD 7E 00     Print_BCD_2		LD A, (IX)
+173+  8402 DD 23          INC IX
+174+  8404 F5           Print_BCD:		PUSH AF				; Store the value
+175+  8405 E6 F0        			AND 0xF0			; Get the top nibble
+176+  8407 1F           			RRA				; Shift into bottom nibble
+177+  8408 1F           			RRA
+178+  8409 1F           			RRA
+179+  840A 1F           			RRA
+180+  840B C6 30        			ADD A, '0'			; Add to ASCII '0'
+181+  840D CD 20 84     			CALL Print_Char			; Print the character
+182+  8410 2C           			INC L				; Move right one space
+183+  8411 F1           			POP AF
+184+  8412 E6 0F        			AND 0x0F			; Get the bottom nibble
+185+  8414 C6 30        			ADD A, '0'			; Add to ASCII '0'
+186+  8416 CD 20 84     			CALL Print_Char			; Print
+187+  8419 2C           			INC L				; Move right one space
+188+  841A C9           			RET
+189+  841B
+190+  841B              ; Print a single character out to an X/Y position
+191+  841B              ;  A: Character to print
+192+  841B              ;  C: X Coordinate
+193+  841B              ;  B: Y Coordinate
+194+  841B              ; DE: Address of character set
+195+  841B              ;
+196+  841B F5           Print_Char_At:		PUSH AF
+197+  841C CD 8D 83     			CALL Get_Char_Address
+198+  841F F1           			POP AF				; Fall through to Print_Char
+199+  8420              ;
+200+  8420              ; Print a single character out to a screen address
+201+  8420              ;  A:  Character to print
+202+  8420              ;  HL: Screen address to print character at
+203+  8420              ;  DE: Address of character set (if entering at Print_Char_UDG)
+204+  8420              ; No SM code here - needs to be re-enterent if called on interrupt
+205+  8420              ;
+206+  8420 11 00 3C     Print_Char:		LD DE, 0x3C00			; Address of character set in ROM
+207+  8423 E5           			PUSH HL
+208+  8424 06 00        			LD B, 0				; Get index into character set
+209+  8426 4F           			LD C, A
+210+  8427              			DUP 3
+211+  8427 CB 21       >			SLA C
+212+  8429 CB 10       >			RL B
+211+  842B CB 21       >			SLA C
+212+  842D CB 10       >			RL B
+211+  842F CB 21       >			SLA C
+212+  8431 CB 10       >			RL B
+213+  8433              			EDUP
+214+  8433 EB           			EX DE, HL
+215+  8434 09           			ADD HL, BC
+216+  8435 EB           			EX DE, HL
+217+  8436 CD 3B 84     			CALL Print_UDG8
+218+  8439 E1           			POP HL
+219+  843A C9           			RET
+220+  843B
+221+  843B              ; Print a UDG (Single Height)
+222+  843B              ; DE - Character data
+223+  843B              ; HL - Screen address
+224+  843B              ;
+225+  843B 06 08        Print_UDG8:		LD B,8				; Loop counter
+226+  843D 1A           2:			LD A,(DE)			; Get the byte from the ROM into A
+227+  843E 77           			LD (HL),A			; Stick A onto the screen
+228+  843F 13           			INC DE				; Goto next byte of character
+229+  8440 24           			INC H				; Goto next line on screen
+230+  8441 10 FA        			DJNZ 2B				; Loop around whilst it is Not Zero (NZ)
+231+  8443 C9           			RET
+232+  8444
+# file closed: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/output.z80
+ 28   8444              			include "../lib/scroll.z80"
+# file opened: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/scroll.z80
+  1+  8444              ;
+  2+  8444              ; Title:	ZX Spectrum Stack Based Scroller
+  3+  8444              ; Author:	Dean Belfield
+  4+  8444              ; Created:	30/01/2020
+  5+  8444              ; Last Updated:	23/02/2020
+  6+  8444              ;
+  7+  8444              ; Requires:	scroll_attr
+  8+  8444              ;
+  9+  8444              ; Modinfo:
+ 10+  8444              ;
+ 11+  8444              ; 30/01/2020	Initial proof-of-concept - missing mapping code
+ 12+  8444              ; 03/02/2020	Tilesets for each row are now pulled from the map data
+ 13+  8444              ; 05/02/2020	Tileset now has BC as blank tile - so 0x00 is now blank in map data rather than 0x20
+ 14+  8444              ;		Fixed order of pops in Scroll_Tile_Part so that map tile graphics correctly map to map data
+ 15+  8444              ; 		Added Scroll_BlockAtXY and Scroll_Move
+ 16+  8444              ; 23/02/2020:	Minor tweaks to add scrolling colours (attributes)
+ 17+  8444              ;
+ 18+  8444
+ 19+  8444              			include "../lib/scroll_attr.z80"	; Extra code for scrolling the attributes
+# file opened: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/../lib/scroll_attr.z80
+  1++ 8444              ;
+  2++ 8444              ; Title:	ZX Spectrum Stack Based Scroller
+  3++ 8444              ; Author:	Dean Belfield
+  4++ 8444              ; Created:	23/02/2020
+  5++ 8444              ; Last Updated:	23/02/2020
+  6++ 8444              ;
+  7++ 8444              ; Requires:	scroll
+  8++ 8444              ;
+  9++ 8444              ; Modinfo:
+ 10++ 8444              ;
+ 11++ 8444
+ 12++ 8444              ; Macros
+ 13++ 8444              ;
+ 14++ 8444              SCROLL_ATTR_ROW:	MACRO	callbackAddress, mask
+ 15++ 8444 ~            			LD HL, 0				; This will be the address of the tileset colours
+ 16++ 8444 ~            			LD IX, callbackAddress			; The address of the self-modified push code
+ 17++ 8444 ~            			LD C, mask
+ 18++ 8444 ~            			CALL Scroll_Attr_Full
+ 19++ 8444              			ENDM
+ 20++ 8444
+ 21++ 8444 11 2C 85     Scroll_Attr:		LD DE, Scroll_Attr_Ret			; Set the scroll return address vector up
+ 22++ 8447 ED 53 5E 87  			LD (Scroll_Ret_Vector+1), DE
+ 23++ 844B 11 18 58     			LD DE, 0x5818				; Point to the screen attributes
+ 24++ 844E
+ 25++ 844E 21 00 00     Scroll_Attr_Mod_00:	LD HL, 0				; Point to tileset colours
+ 26++ 8451 DD 21 62 87  			LD IX, Scroll_Write_Row_00
+ 27++ 8455 3A 60 87     			LD A, (Vertical_Scroll_Offset)		; Get offset for first row into tileset
+ 28++ 8458 E6 08        			AND 8					; Get the colour offset (0 or 8)
+ 29++ 845A 4F           			LD C, A
+ 30++ 845B CB 3F        			SRL A 					; Divide by 2
+ 31++ 845D 81           			ADD A,C 				; Add to the original value
+ 32++ 845E 06 00        			LD B, 0					; Load into BC
+ 33++ 8460 4F           			LD C, A
+ 34++ 8461 09           			ADD HL, BC				; And add to the tile offset
+ 35++ 8462 3A 60 87     			LD A, (Vertical_Scroll_Offset)		; Get the # of lines to output for first tile
+ 36++ 8465 E6 08        			AND 8
+ 37++ 8467 CB 3F        			SRL A
+ 38++ 8469 CB 3F        			SRL A
+ 39++ 846B CB 3F        			SRL A
+ 40++ 846D 47           			LD B, A
+ 41++ 846E 3E 02        			LD A, 2
+ 42++ 8470 90           			SUB B
+ 43++ 8471 47           			LD B, A					; Partial number of rows for first tile
+ 44++ 8472 CD 0F 85     			CALL Scroll_Attr_Part			; Draw the first partial row
+ 45++ 8475
+ 46++ 8475              Scroll_Attr_Mod_01:	SCROLL_ATTR_ROW Scroll_Write_Row_01, 0	; Write out the 11 complete tile rows
+ 46++ 8475 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 46++ 8478 DD 21 7D 87 >			LD IX, Scroll_Write_Row_01			; The address of the self-modified push code
+ 46++ 847C 0E 00       >			LD C, 0
+ 46++ 847E CD FD 84    >			CALL Scroll_Attr_Full
+ 47++ 8481              Scroll_Attr_Mod_02:	SCROLL_ATTR_ROW Scroll_Write_Row_02, 1 	; Using a macro to condense the code
+ 47++ 8481 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 47++ 8484 DD 21 98 87 >			LD IX, Scroll_Write_Row_02			; The address of the self-modified push code
+ 47++ 8488 0E 01       >			LD C, 1
+ 47++ 848A CD FD 84    >			CALL Scroll_Attr_Full
+ 48++ 848D              Scroll_Attr_Mod_03:	SCROLL_ATTR_ROW Scroll_Write_Row_03, 2	; The Scroll_Mod_nn labels are used to
+ 48++ 848D 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 48++ 8490 DD 21 B3 87 >			LD IX, Scroll_Write_Row_03			; The address of the self-modified push code
+ 48++ 8494 0E 02       >			LD C, 2
+ 48++ 8496 CD FD 84    >			CALL Scroll_Attr_Full
+ 49++ 8499              Scroll_Attr_Mod_04:	SCROLL_ATTR_ROW Scroll_Write_Row_04, 3	; modify the first instruction of the
+ 49++ 8499 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 49++ 849C DD 21 CE 87 >			LD IX, Scroll_Write_Row_04			; The address of the self-modified push code
+ 49++ 84A0 0E 03       >			LD C, 3
+ 49++ 84A2 CD FD 84    >			CALL Scroll_Attr_Full
+ 50++ 84A5              Scroll_Attr_Mod_05:	SCROLL_ATTR_ROW Scroll_Write_Row_05, 0	; macro, LD HL, 0, with the tileset
+ 50++ 84A5 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 50++ 84A8 DD 21 E9 87 >			LD IX, Scroll_Write_Row_05			; The address of the self-modified push code
+ 50++ 84AC 0E 00       >			LD C, 0
+ 50++ 84AE CD FD 84    >			CALL Scroll_Attr_Full
+ 51++ 84B1              Scroll_Attr_Mod_06:	SCROLL_ATTR_ROW Scroll_Write_Row_06, 1	; address
+ 51++ 84B1 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 51++ 84B4 DD 21 04 88 >			LD IX, Scroll_Write_Row_06			; The address of the self-modified push code
+ 51++ 84B8 0E 01       >			LD C, 1
+ 51++ 84BA CD FD 84    >			CALL Scroll_Attr_Full
+ 52++ 84BD              Scroll_Attr_Mod_07:	SCROLL_ATTR_ROW Scroll_Write_Row_07, 2
+ 52++ 84BD 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 52++ 84C0 DD 21 1F 88 >			LD IX, Scroll_Write_Row_07			; The address of the self-modified push code
+ 52++ 84C4 0E 02       >			LD C, 2
+ 52++ 84C6 CD FD 84    >			CALL Scroll_Attr_Full
+ 53++ 84C9              Scroll_Attr_Mod_08:	SCROLL_ATTR_ROW Scroll_Write_Row_08, 3
+ 53++ 84C9 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 53++ 84CC DD 21 3A 88 >			LD IX, Scroll_Write_Row_08			; The address of the self-modified push code
+ 53++ 84D0 0E 03       >			LD C, 3
+ 53++ 84D2 CD FD 84    >			CALL Scroll_Attr_Full
+ 54++ 84D5              Scroll_Attr_Mod_09:	SCROLL_ATTR_ROW Scroll_Write_Row_09, 0
+ 54++ 84D5 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 54++ 84D8 DD 21 55 88 >			LD IX, Scroll_Write_Row_09			; The address of the self-modified push code
+ 54++ 84DC 0E 00       >			LD C, 0
+ 54++ 84DE CD FD 84    >			CALL Scroll_Attr_Full
+ 55++ 84E1              Scroll_Attr_Mod_10:	SCROLL_ATTR_ROW Scroll_Write_Row_10, 1
+ 55++ 84E1 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 55++ 84E4 DD 21 70 88 >			LD IX, Scroll_Write_Row_10			; The address of the self-modified push code
+ 55++ 84E8 0E 01       >			LD C, 1
+ 55++ 84EA CD FD 84    >			CALL Scroll_Attr_Full
+ 56++ 84ED              Scroll_Attr_Mod_11:	SCROLL_ATTR_ROW Scroll_Write_Row_11, 2
+ 56++ 84ED 21 00 00    >			LD HL, 0				; This will be the address of the tileset colours
+ 56++ 84F0 DD 21 8B 88 >			LD IX, Scroll_Write_Row_11			; The address of the self-modified push code
+ 56++ 84F4 0E 02       >			LD C, 2
+ 56++ 84F6 CD FD 84    >			CALL Scroll_Attr_Full
+ 57++ 84F9
+ 58++ 84F9 21 00 00     Scroll_Attr_Mod_12:	LD HL, 0				; Point to tileset colours
+ 59++ 84FC C9           			RET
+ 60++ 84FD
+ 61++ 84FD              ; Write out a single colourset for a row of tiles
+ 62++ 84FD              ; HL - Address of the colourset for this row of tiles
+ 63++ 84FD              ; DE - Screen Address
+ 64++ 84FD              ; IX - Address of the routine to push out a pixel row of the tiles
+ 65++ 84FD              ;  C - Mask (to only update some attribute rows at at time)
+ 66++ 84FD              ;
+ 67++ 84FD 06 02        Scroll_Attr_Full:	LD B, 2
+ 68++ 84FF 3A 60 87     			LD A, (Vertical_Scroll_Offset)
+ 69++ 8502 E6 03        			AND 3
+ 70++ 8504 B9           			CP C
+ 71++ 8505 28 08        			JR Z, Scroll_Attr_Part
+ 72++ 8507 3E 40        			LD A, 64
+ 73++ 8509              			ADD_DE_A
+ 73++ 8509 83          >			ADD A, E
+ 73++ 850A 5F          >			LD E, A
+ 73++ 850B 30 01       >			JR NC, .S1
+ 73++ 850D 14          >			INC D
+ 73++ 850E             >.S1			;
+ 74++ 850E C9           			RET
+ 75++ 850F ED 73 38 85  Scroll_Attr_Part:	LD (Scroll_Attr_SP + 1), SP
+ 76++ 8513 DD 22 2A 85  			LD (Scroll_Attr_02 + 1), IX
+ 77++ 8517 F9           Scroll_Attr_01:		LD SP, HL	; Point HL at the colour data
+ 78++ 8518 21 0C 00     			LD HL, 12
+ 79++ 851B 39           			ADD HL, SP
+ 80++ 851C D9           			EXX
+ 81++ 851D C1 D1 E1 F1  			POP BC, DE, HL, AF, IX, IY
+ 81++ 8521 DD E1 FD E1
+ 82++ 8525 D9           			EXX
+ 83++ 8526 EB           			EX DE, HL	; Swap the screen address (in DE) into HL
+ 84++ 8527 F9           			LD SP, HL	; And load into the SP
+ 85++ 8528 D9           			EXX
+ 86++ 8529 C3 00 00     Scroll_Attr_02:		JP 0
+ 87++ 852C D9           Scroll_Attr_Ret:	EXX
+ 88++ 852D EB           			EX DE, HL
+ 89++ 852E 7B           			LD A, E
+ 90++ 852F C6 20        			ADD A, 32
+ 91++ 8531 5F           			LD E, A
+ 92++ 8532 30 01        			JR NC, 1F
+ 93++ 8534 14           			INC D
+ 94++ 8535 10 E0        1:			DJNZ Scroll_Attr_01
+ 95++ 8537 31 00 00     Scroll_Attr_SP:		LD SP, 0
+ 96++ 853A C9           			RET
+# file closed: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/../lib/scroll_attr.z80
+ 20+  853B
+ 21+  853B              ; Macros
+ 22+  853B              ;
+ 23+  853B              SCROLL_TILE_ROW:	MACRO	callbackAddress
+ 24+  853B ~            			LD HL, 0				; This will be the address of the tileset graphics
+ 25+  853B ~            			LD IX, callbackAddress			; The address of the self-modified push code
+ 26+  853B ~            			CALL Scroll_Tile_Full
+ 27+  853B              			ENDM
+ 28+  853B
+ 29+  853B              ; Move the scroll up or down a number of pixels
+ 30+  853B              ;  A: Number of pixels to move the scroll
+ 31+  853B              ;
+ 32+  853B 2A 60 87     Scroll_Move:		LD HL, (Vertical_Scroll_Offset)
+ 33+  853E              			LD_BC_A
+ 33+  853E 4F          >			LD C, A 			; Turn A into 16 bit number
+ 33+  853F 87          >			ADD A, A			; Push sign into carry
+ 33+  8540 9F          >			SBC A, A 			; Turn into 0 or -1 (0xFF)
+ 33+  8541 47          >			LD B, A				; Store in MSB
+ 34+  8542 09           			ADD HL, BC
+ 35+  8543 CB 7C        			BIT 7, H
+ 36+  8545 28 03        			JR Z, 1F				; If result positive, not reached top
+ 37+  8547 21 00 00     			LD HL, 0			 	; If we've reached the top, then zero the counter
+ 38+  854A 22 60 87     1:			LD (Vertical_Scroll_Offset), HL
+ 39+  854D 01 10 02     			LD BC, 16 * (Demo_Map_Length - 12)	; Bottom boundary check
+ 40+  8550              			SUB_HL_BC
+ 40+  8550 B7          >			OR A
+ 40+  8551 ED 42       >			SBC HL,BC
+ 41+  8553 D8           			RET C
+ 42+  8554 ED 43 60 87  			LD (Vertical_Scroll_Offset), BC
+ 43+  8558 C9           			RET
+ 44+  8559
+ 45+  8559              ; Get the scroll block value at map position (X,Y)
+ 46+  8559              ;  HL: Map Array
+ 47+  8559              ;   C: X position
+ 48+  8559              ;   B: Y position
+ 49+  8559              ; Returns:
+ 50+  8559              ;  HL: Block address
+ 51+  8559              ;   A: Block value
+ 52+  8559              ;
+ 53+  8559 ED 5B 60 87  Scroll_BlockAtXY:	LD DE, (Vertical_Scroll_Offset)		; Get the vertical scroll offset (in pixels)
+ 54+  855D 78           			LD A, B					; And the sprite Y coordinate
+ 55+  855E              			ADD_DE_A				; Add them
+ 55+  855E 83          >			ADD A, E
+ 55+  855F 5F          >			LD E, A
+ 55+  8560 30 01       >			JR NC, .S1
+ 55+  8562 14          >			INC D
+ 55+  8563             >.S1			;
+ 56+  8563 E6 F0        			AND 0xF0				; Zero the lower nibble
+ 57+  8565 5F           			LD E, A
+ 58+  8566 19           			ADD HL, DE				; And add to the map table address
+ 59+  8567 CB 39        			SRL C 					; Divide the X coordinate by 16
+ 60+  8569 CB 39        			SRL C
+ 61+  856B CB 39        			SRL C
+ 62+  856D CB 39        			SRL C
+ 63+  856F 3E 0F        			LD A, 15				; Map is stored right-to-left
+ 64+  8571 91           			SUB C 					; So do 15 - E
+ 65+  8572 5F           			LD E, A
+ 66+  8573 16 00        			LD D, 0
+ 67+  8575 19           			ADD HL, DE 				; Add them
+ 68+  8576 7E           			LD A,(HL)
+ 69+  8577 C9           			RET
+ 70+  8578
+ 71+  8578              ; Initialise
+ 72+  8578              ; HL = Map Array (12 bytes long)
+ 73+  8578              ;
+ 74+  8578 ED 5B 60 87  Initialise_Scroll:	LD DE, (Vertical_Scroll_Offset)		; Work out the map offset
+ 75+  857C 7B           			LD A, E					; Mask out lower nibble
+ 76+  857D E6 F0        			AND 0xF0				; to give us the index into
+ 77+  857F 5F           			LD E,A					; the 16 byte wide map table
+ 78+  8580 19           			ADD HL, DE 				; Add to map address
+ 79+  8581              ;
+ 80+  8581              ; Write out the self-modding code for the scroll routine
+ 81+  8581              ; HL - The address of the self-modified push code
+ 82+  8581              ; IX - The address to store the tilest address in
+ 83+  8581              ;
+ 84+  8581              			LUA ALLPASS
+ 85+  8581 ~            			for i = 0, 12 do
+ 86+  8581 ~            				_pc(string.format("LD DE, Scroll_Write_Row_%02d", i))
+ 87+  8581 ~            				_pc(string.format("LD IX, Scroll_Tile_Mod_%02d + 1", i))
+ 88+  8581 ~            				_pc(string.format("LD IY, Scroll_Attr_Mod_%02d + 1", i))
+ 89+  8581 ~            				if i < 12 then
+ 90+  8581 ~            					_pc("CALL Initialise_Scroll_0")
+ 91+  8581 ~            				end
+ 92+  8581 ~            			end
+ 93+  8581 11 62 87     LD DE, Scroll_Write_Row_00
+ 93+  8584 DD 21 84 86  LD IX, Scroll_Tile_Mod_00 + 1
+ 93+  8588 FD 21 4F 84  LD IY, Scroll_Attr_Mod_00 + 1
+ 93+  858C CD 34 86     CALL Initialise_Scroll_0
+ 93+  858F 11 7D 87     LD DE, Scroll_Write_Row_01
+ 93+  8592 DD 21 A9 86  LD IX, Scroll_Tile_Mod_01 + 1
+ 93+  8596 FD 21 76 84  LD IY, Scroll_Attr_Mod_01 + 1
+ 93+  859A CD 34 86     CALL Initialise_Scroll_0
+ 93+  859D 11 98 87     LD DE, Scroll_Write_Row_02
+ 93+  85A0 DD 21 B3 86  LD IX, Scroll_Tile_Mod_02 + 1
+ 93+  85A4 FD 21 82 84  LD IY, Scroll_Attr_Mod_02 + 1
+ 93+  85A8 CD 34 86     CALL Initialise_Scroll_0
+ 93+  85AB 11 B3 87     LD DE, Scroll_Write_Row_03
+ 93+  85AE DD 21 BD 86  LD IX, Scroll_Tile_Mod_03 + 1
+ 93+  85B2 FD 21 8E 84  LD IY, Scroll_Attr_Mod_03 + 1
+ 93+  85B6 CD 34 86     CALL Initialise_Scroll_0
+ 93+  85B9 11 CE 87     LD DE, Scroll_Write_Row_04
+ 93+  85BC DD 21 C7 86  LD IX, Scroll_Tile_Mod_04 + 1
+ 93+  85C0 FD 21 9A 84  LD IY, Scroll_Attr_Mod_04 + 1
+ 93+  85C4 CD 34 86     CALL Initialise_Scroll_0
+ 93+  85C7 11 E9 87     LD DE, Scroll_Write_Row_05
+ 93+  85CA DD 21 D1 86  LD IX, Scroll_Tile_Mod_05 + 1
+ 93+  85CE FD 21 A6 84  LD IY, Scroll_Attr_Mod_05 + 1
+ 93+  85D2 CD 34 86     CALL Initialise_Scroll_0
+ 93+  85D5 11 04 88     LD DE, Scroll_Write_Row_06
+ 93+  85D8 DD 21 DB 86  LD IX, Scroll_Tile_Mod_06 + 1
+ 93+  85DC FD 21 B2 84  LD IY, Scroll_Attr_Mod_06 + 1
+ 93+  85E0 CD 34 86     CALL Initialise_Scroll_0
+ 93+  85E3 11 1F 88     LD DE, Scroll_Write_Row_07
+ 93+  85E6 DD 21 E5 86  LD IX, Scroll_Tile_Mod_07 + 1
+ 93+  85EA FD 21 BE 84  LD IY, Scroll_Attr_Mod_07 + 1
+ 93+  85EE CD 34 86     CALL Initialise_Scroll_0
+ 93+  85F1 11 3A 88     LD DE, Scroll_Write_Row_08
+ 93+  85F4 DD 21 EF 86  LD IX, Scroll_Tile_Mod_08 + 1
+ 93+  85F8 FD 21 CA 84  LD IY, Scroll_Attr_Mod_08 + 1
+ 93+  85FC CD 34 86     CALL Initialise_Scroll_0
+ 93+  85FF 11 55 88     LD DE, Scroll_Write_Row_09
+ 93+  8602 DD 21 F9 86  LD IX, Scroll_Tile_Mod_09 + 1
+ 93+  8606 FD 21 D6 84  LD IY, Scroll_Attr_Mod_09 + 1
+ 93+  860A CD 34 86     CALL Initialise_Scroll_0
+ 93+  860D 11 70 88     LD DE, Scroll_Write_Row_10
+ 93+  8610 DD 21 03 87  LD IX, Scroll_Tile_Mod_10 + 1
+ 93+  8614 FD 21 E2 84  LD IY, Scroll_Attr_Mod_10 + 1
+ 93+  8618 CD 34 86     CALL Initialise_Scroll_0
+ 93+  861B 11 8B 88     LD DE, Scroll_Write_Row_11
+ 93+  861E DD 21 0D 87  LD IX, Scroll_Tile_Mod_11 + 1
+ 93+  8622 FD 21 EE 84  LD IY, Scroll_Attr_Mod_11 + 1
+ 93+  8626 CD 34 86     CALL Initialise_Scroll_0
+ 93+  8629 11 A6 88     LD DE, Scroll_Write_Row_12
+ 93+  862C DD 21 17 87  LD IX, Scroll_Tile_Mod_12 + 1
+ 93+  8630 FD 21 FA 84  LD IY, Scroll_Attr_Mod_12 + 1
+ 93+  8634              			ENDLUA
+ 94+  8634              ;
+ 95+  8634              ; Drop straight into Initialise_Scroll_0 for the last row
+ 96+  8634              ;
+ 97+  8634              ; Read a map row in and write out the self-modding code
+ 98+  8634              ; Parameters:
+ 99+  8634              ;  DE - Map
+100+  8634              ;  HL - Buffer
+101+  8634              ;  IX - Address to store the tileset pixel address in
+102+  8634              ;  IY - Address to store the tileset attribute address in
+103+  8634              ; The self-modding code is essentially a series of PUSH instructions
+104+  8634              ; where each PUSH instruction corresponds to the tile that we want to
+105+  8634              ; display in that column. There are only 5 possible graphics, with
+106+  8634              ; HL being reserved for a blank tile. The code is terminated with a JP
+107+  8634              ; instruction back to the scroll routine
+108+  8634              ;       C5 - Push BC = 00
+109+  8634              ;       D5 - Push DE = 10
+110+  8634              ;       E5 - Push HL = 20
+111+  8634              ;       F5 - Push AF = 30
+112+  8634              ;    DD E5 - Push IX = 40 (note IX and IY require two bytes written out)
+113+  8634              ;    FD E5 - Push IY = 50
+114+  8634              ; C3 LL HH - JP nn - where nn is the address of Scroll_Rentry_Point
+115+  8634              ; Need a buffer size of 12 x 2 + 3
+116+  8634              ;
+117+  8634 4E           Initialise_Scroll_0:	LD C, (HL)				; Get the tileset address
+118+  8635 23           			INC HL
+119+  8636 46           			LD B, (HL)
+120+  8637 23           			INC HL
+121+  8638 DD 71 00     			LD (IX + 0), C				; Store the address of the tileset pixel data
+122+  863B DD 70 01     			LD (IX + 1), B
+123+  863E 3E C0        			LD A, 12 * 16				; Get to the tileset attribute data (underneath the tileset)
+124+  8640              			ADD_BC_A
+124+  8640 81          >			ADD A,C
+124+  8641 4F          >			LD C, A
+124+  8642 30 01       >			JR NC, .S1
+124+  8644 04          >			INC B
+124+  8645             >.S1			;
+125+  8645 FD 71 00     			LD (IY + 0), C				; Store the address of the tileset attribute data
+126+  8648 FD 70 01     			LD (IY + 1), B
+127+  864B 23           			INC HL					; Skip the spare two bytes
+128+  864C 23           			INC HL
+129+  864D 06 0C        			LD B, 12				; Numbe of tile columns to write out
+130+  864F 0E 40        			LD C, 0x40				; Use this to check for IX and IY
+131+  8651 EB           			EX DE, HL
+132+  8652 1A           Initialise_Scroll_1:	LD A,(DE)				; Get first map tile
+133+  8653 E6 F0        			AND 0xF0				; Only interested in top nibble
+134+  8655 B9           			CP C					; Are we writing out AF, BC, DE or HL
+135+  8656 38 10        			JR C, Initialise_Scroll_1B		; Yes, so jump to write out a single byte PUSH
+136+  8658 28 07        			JR Z, Initialise_Scroll_IX		; If exactly 0x40 then jump to write out PUSH IX
+137+  865A              ; Write out IY (FD E5)						; So we must be writing out IY at this point
+138+  865A 36 FD        			LD (HL), 0xFD
+139+  865C 23           			INC HL
+140+  865D 36 E5        			LD (HL), 0xE5
+141+  865F 18 0A        			JR Initialise_Scroll_Ret
+142+  8661              ; Write out IX (DD E5)
+143+  8661              ;
+144+  8661 36 DD        Initialise_Scroll_IX:	LD (HL), 0xDD
+145+  8663 23           			INC HL
+146+  8664 36 E5        			LD (HL), 0xE5
+147+  8666 18 03        			JR Initialise_Scroll_Ret
+148+  8668              ;
+149+  8668              ; Write out AF, BC, DE, HL (C5, D5, E5 and F5)
+150+  8668              ;
+151+  8668 C6 C5        Initialise_Scroll_1B:	ADD A, 0xC5				; Quickly add 0xC5 to the tile # to get the PUSH opcode
+152+  866A 77           			LD (HL), A				; Write out the PUSH instruction here!
+153+  866B              ;
+154+  866B              ; Write out final JP instruction (C3 LL HH)
+155+  866B              ;
+156+  866B 23           Initialise_Scroll_Ret:	INC HL					; Loop to next byte of memory to write out
+157+  866C 13           			INC DE					; And the next tile address
+158+  866D 10 E3        			DJNZ Initialise_Scroll_1		; Jump to next tile column
+159+  866F 36 C3        			LD (HL), 0xC3				; Here we're writing out a JP instruction
+160+  8671 23           			INC HL
+161+  8672 36 5D        			LD (HL),low Scroll_Ret_Vector 		; These are self-modding with the correct value at
+162+  8674 23           			INC HL					; top of function Initialise_Scroll with the
+163+  8675 36 87        			LD (HL),high Scroll_Ret_Vector
+164+  8677 EB           			EX DE, HL
+165+  8678 C9           			RET
+166+  8679
+167+  8679              ; Stack-based scroll routine
+168+  8679              ; Scrolls a 24x24 character block vertically - each tile is 16x16 pixels
+169+  8679              ;
+170+  8679 11 45 87     Scroll:			LD DE, Scroll_Ret			; Set the scroll return vector up
+171+  867C ED 53 5E 87  			LD (Scroll_Ret_Vector+1), DE
+172+  8680 11 18 40     			LD DE, 0x4018				; Point to the screen
+173+  8683 21 00 00     Scroll_Tile_Mod_00:	LD HL, 0				; Point to tileset
+174+  8686 DD 21 62 87  			LD IX, Scroll_Write_Row_00
+175+  868A 3A 60 87     			LD A, (Vertical_Scroll_Offset)		; Get offset for first row into tileset
+176+  868D E6 0F        			AND 15
+177+  868F 4F           			LD C, A
+178+  8690 CB 27        			SLA A					; Multiply by 12 (6 possible tiles in the set
+179+  8692 81           			ADD A, C
+180+  8693 CB 27        			SLA A					; each of them a word wide
+181+  8695 CB 27        			SLA A
+182+  8697 06 00        			LD B, 0					; Load into BC
+183+  8699 4F           			LD C, A
+184+  869A 09           			ADD HL, BC				; And add to the tile offset
+185+  869B 3A 60 87     			LD A, (Vertical_Scroll_Offset)		; Get the # of lines to output for first tile
+186+  869E E6 0F        			AND 15
+187+  86A0 47           			LD B, A
+188+  86A1 3E 10        			LD A, 16
+189+  86A3 90           			SUB B
+190+  86A4 47           			LD B, A					; Partial number of rows for first tile
+191+  86A5 CD 28 87     			CALL Scroll_Tile_Part			; Draw the first partial row
+192+  86A8
+193+  86A8              Scroll_Tile_Mod_01:	SCROLL_TILE_ROW Scroll_Write_Row_01	; Write out the 11 complete tile rows
+193+  86A8 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+193+  86AB DD 21 7D 87 >			LD IX, Scroll_Write_Row_01			; The address of the self-modified push code
+193+  86AF CD 26 87    >			CALL Scroll_Tile_Full
+194+  86B2              Scroll_Tile_Mod_02:	SCROLL_TILE_ROW Scroll_Write_Row_02 	; Using a macro to condense the code
+194+  86B2 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+194+  86B5 DD 21 98 87 >			LD IX, Scroll_Write_Row_02			; The address of the self-modified push code
+194+  86B9 CD 26 87    >			CALL Scroll_Tile_Full
+195+  86BC              Scroll_Tile_Mod_03:	SCROLL_TILE_ROW Scroll_Write_Row_03	; The Scroll_Mod_nn labels are used to
+195+  86BC 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+195+  86BF DD 21 B3 87 >			LD IX, Scroll_Write_Row_03			; The address of the self-modified push code
+195+  86C3 CD 26 87    >			CALL Scroll_Tile_Full
+196+  86C6              Scroll_Tile_Mod_04:	SCROLL_TILE_ROW Scroll_Write_Row_04	; modify the first instruction of the
+196+  86C6 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+196+  86C9 DD 21 CE 87 >			LD IX, Scroll_Write_Row_04			; The address of the self-modified push code
+196+  86CD CD 26 87    >			CALL Scroll_Tile_Full
+197+  86D0              Scroll_Tile_Mod_05:	SCROLL_TILE_ROW Scroll_Write_Row_05	; macro, LD HL, 0, with the tileset
+197+  86D0 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+197+  86D3 DD 21 E9 87 >			LD IX, Scroll_Write_Row_05			; The address of the self-modified push code
+197+  86D7 CD 26 87    >			CALL Scroll_Tile_Full
+198+  86DA              Scroll_Tile_Mod_06:	SCROLL_TILE_ROW Scroll_Write_Row_06	; address
+198+  86DA 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+198+  86DD DD 21 04 88 >			LD IX, Scroll_Write_Row_06			; The address of the self-modified push code
+198+  86E1 CD 26 87    >			CALL Scroll_Tile_Full
+199+  86E4              Scroll_Tile_Mod_07:	SCROLL_TILE_ROW Scroll_Write_Row_07
+199+  86E4 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+199+  86E7 DD 21 1F 88 >			LD IX, Scroll_Write_Row_07			; The address of the self-modified push code
+199+  86EB CD 26 87    >			CALL Scroll_Tile_Full
+200+  86EE              Scroll_Tile_Mod_08:	SCROLL_TILE_ROW Scroll_Write_Row_08
+200+  86EE 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+200+  86F1 DD 21 3A 88 >			LD IX, Scroll_Write_Row_08			; The address of the self-modified push code
+200+  86F5 CD 26 87    >			CALL Scroll_Tile_Full
+201+  86F8              Scroll_Tile_Mod_09:	SCROLL_TILE_ROW Scroll_Write_Row_09
+201+  86F8 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+201+  86FB DD 21 55 88 >			LD IX, Scroll_Write_Row_09			; The address of the self-modified push code
+201+  86FF CD 26 87    >			CALL Scroll_Tile_Full
+202+  8702              Scroll_Tile_Mod_10:	SCROLL_TILE_ROW Scroll_Write_Row_10
+202+  8702 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+202+  8705 DD 21 70 88 >			LD IX, Scroll_Write_Row_10			; The address of the self-modified push code
+202+  8709 CD 26 87    >			CALL Scroll_Tile_Full
+203+  870C              Scroll_Tile_Mod_11:	SCROLL_TILE_ROW Scroll_Write_Row_11
+203+  870C 21 00 00    >			LD HL, 0				; This will be the address of the tileset graphics
+203+  870F DD 21 8B 88 >			LD IX, Scroll_Write_Row_11			; The address of the self-modified push code
+203+  8713 CD 26 87    >			CALL Scroll_Tile_Full
+204+  8716
+205+  8716 21 00 00     Scroll_Tile_Mod_12:	LD HL, 0				; And finally, draw the end part if required
+206+  8719 DD 21 A6 88  			LD IX, Scroll_Write_Row_12
+207+  871D 3A 60 87     			LD A, (Vertical_Scroll_Offset)
+208+  8720 E6 0F        			AND 15
+209+  8722 C8           			RET Z
+210+  8723 47           			LD B, A
+211+  8724 18 02        			JR Scroll_Tile_Part
+212+  8726
+213+  8726              ; Write out a single row of tiles
+214+  8726              ; HL - Address of the tileset for this row of tiles
+215+  8726              ; DE - Screen Address
+216+  8726              ; IX - Address of the routine to push out a pixel row of the tiles
+217+  8726              ;
+218+  8726 06 10        Scroll_Tile_Full:	LD B, 16				; Set the tile height in B
+219+  8728 ED 73 5A 87  Scroll_Tile_Part:	LD (Scroll_03 + 1), SP			; Save the stack pointer
+220+  872C DD 22 43 87  			LD (Scroll_02 + 1), IX			; Save the draw line routine
+221+  8730 F9           Scroll_01:		LD SP, HL				; Point the stack at the tileset
+222+  8731 21 0C 00     			LD HL, 12				; Go to the next line of the tileset
+223+  8734 39           			ADD HL, SP
+224+  8735 D9           			EXX					; Switch to alternate registers
+225+  8736 C1 D1 E1 F1  			POP BC,DE,HL,AF,IX,IY			; Pop the tileset into the AF, BC, DE', HL', IX and IY
+225+  873A DD E1 FD E1
+226+  873E D9           			EXX					; Switch back to normal registers
+227+  873F EB           			EX DE, HL				; Swap the screen address (in DE) into HL
+228+  8740 F9           			LD SP, HL				; And load into the stack pointer
+229+  8741 D9           			EXX					; Switch back to the alternate registers
+230+  8742 C3 00 00     Scroll_02:		JP 0					; Write out a row of pixels
+231+  8745 D9           Scroll_Ret:		EXX					; Switch back to the normal registers
+232+  8746 EB           			EX DE, HL				; Swap DE and HL back again
+233+  8747 14           			INC D					; Drop down to the next pixel line of the screen
+234+  8748 7A           			LD A, D
+235+  8749 E6 07        			AND 0x07
+236+  874B 20 0A        			JR NZ, Scroll_04			; If we've gone over a character boundary, then
+237+  874D 7B           			LD A, E					; Drop down one character in screen memory
+238+  874E C6 20        			ADD A, 32
+239+  8750 5F           			LD E, A
+240+  8751 38 04        			JR C, Scroll_04				; If we've gone over a screen third boundary
+241+  8753 7A           			LD A, D					; Drop down to the next third
+242+  8754 D6 08        			SUB 8
+243+  8756 57           			LD D,A
+244+  8757 10 D7        Scroll_04:		DJNZ Scroll_01				; Loop
+245+  8759 31 00 00     Scroll_03:		LD SP, 0				; Restore the stack pointer
+246+  875C C9           			RET
+247+  875D
+248+  875D C3 45 87     Scroll_Ret_Vector:	JP Scroll_Ret				; The return address for the scroll
+249+  8760
+250+  8760 00 00        Vertical_Scroll_Offset:	DW 0					; Vertical scroll offset
+251+  8762
+252+  8762              ; Buffer for all the PUSH instructions for a single scroll - self modded code written
+253+  8762              ; by Initialise_Scroll is written in here
+254+  8762              ; These are called in sequence in the function Scroll
+255+  8762              ;
+256+  8762 00 00 00...  Scroll_Write_Row_00:	DEFS 27, 0
+257+  877D 00 00 00...  Scroll_Write_Row_01:	DEFS 27, 0
+258+  8798 00 00 00...  Scroll_Write_Row_02:	DEFS 27, 0
+259+  87B3 00 00 00...  Scroll_Write_Row_03:	DEFS 27, 0
+260+  87CE 00 00 00...  Scroll_Write_Row_04:	DEFS 27, 0
+261+  87E9 00 00 00...  Scroll_Write_Row_05:	DEFS 27, 0
+262+  8804 00 00 00...  Scroll_Write_Row_06:	DEFS 27, 0
+263+  881F 00 00 00...  Scroll_Write_Row_07:	DEFS 27, 0
+264+  883A 00 00 00...  Scroll_Write_Row_08:	DEFS 27, 0
+265+  8855 00 00 00...  Scroll_Write_Row_09:	DEFS 27, 0
+266+  8870 00 00 00...  Scroll_Write_Row_10:	DEFS 27, 0
+267+  888B 00 00 00...  Scroll_Write_Row_11:	DEFS 27, 0
+268+  88A6 00 00 00...  Scroll_Write_Row_12:	DEFS 27, 0
+269+  88C1
+# file closed: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/scroll.z80
+ 29   88C1              			include "../lib/math.z80"
+# file opened: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/math.z80
+  1+  88C1              ;
+  2+  88C1              ; Title:	ZX Spectrum Math Routines
+  3+  88C1              ; Author:	Dean Belfield
+  4+  88C1              ; Created:	22/08/2011
+  5+  88C1              ; Last Updated:	08/04/2020
+  6+  88C1              ;
+  7+  88C1              ; Requires:
+  8+  88C1              ;
+  9+  88C1              ; Modinfo:
+ 10+  88C1              ;
+ 11+  88C1              ; 08/04/2020:	Added 8, 16 and 24 bit multiply, 16 and 24 bit divide, and 32 bit square root
+ 12+  88C1
+ 13+  88C1              ; The tables - these must be on a page boundary
+ 14+  88C1              ;
+ 15+  88C1 00 00 00...  			ALIGN 0x100
+ 16+  8900
+ 17+  8900              QMULTABL		LUA ALLPASS
+ 18+  8900 ~            			for i = 0, 255, 16 do
+ 19+  8900 ~            				s = ""
+ 20+  8900 ~            				sep = " 0x"
+ 21+  8900 ~            				for j = i, i+15 do
+ 22+  8900 ~            					h = math.floor((j * j) / 256)
+ 23+  8900 ~            					l = (j * j) - (h * 256)
+ 24+  8900 ~            					s = s .. string.format("%s%02X", sep, l)
+ 25+  8900 ~            					sep = ",0x"
+ 26+  8900 ~            				end
+ 27+  8900 ~            				_pc("DB " .. s)
+ 28+  8900 ~            			end
+ 29+  8900 00 01 04 09  DB  0x00,0x01,0x04,0x09,0x10,0x19,0x24,0x31,0x40,0x51,0x64,0x79,0x90,0xA9,0xC4,0xE1
+ 29+  8904 10 19 24 31
+ 29+  8908 40 51 64 79
+ 29+  890C 90 A9 C4 E1
+ 29+  8910 00 21 44 69  DB  0x00,0x21,0x44,0x69,0x90,0xB9,0xE4,0x11,0x40,0x71,0xA4,0xD9,0x10,0x49,0x84,0xC1
+ 29+  8914 90 B9 E4 11
+ 29+  8918 40 71 A4 D9
+ 29+  891C 10 49 84 C1
+ 29+  8920 00 41 84 C9  DB  0x00,0x41,0x84,0xC9,0x10,0x59,0xA4,0xF1,0x40,0x91,0xE4,0x39,0x90,0xE9,0x44,0xA1
+ 29+  8924 10 59 A4 F1
+ 29+  8928 40 91 E4 39
+ 29+  892C 90 E9 44 A1
+ 29+  8930 00 61 C4 29  DB  0x00,0x61,0xC4,0x29,0x90,0xF9,0x64,0xD1,0x40,0xB1,0x24,0x99,0x10,0x89,0x04,0x81
+ 29+  8934 90 F9 64 D1
+ 29+  8938 40 B1 24 99
+ 29+  893C 10 89 04 81
+ 29+  8940 00 81 04 89  DB  0x00,0x81,0x04,0x89,0x10,0x99,0x24,0xB1,0x40,0xD1,0x64,0xF9,0x90,0x29,0xC4,0x61
+ 29+  8944 10 99 24 B1
+ 29+  8948 40 D1 64 F9
+ 29+  894C 90 29 C4 61
+ 29+  8950 00 A1 44 E9  DB  0x00,0xA1,0x44,0xE9,0x90,0x39,0xE4,0x91,0x40,0xF1,0xA4,0x59,0x10,0xC9,0x84,0x41
+ 29+  8954 90 39 E4 91
+ 29+  8958 40 F1 A4 59
+ 29+  895C 10 C9 84 41
+ 29+  8960 00 C1 84 49  DB  0x00,0xC1,0x84,0x49,0x10,0xD9,0xA4,0x71,0x40,0x11,0xE4,0xB9,0x90,0x69,0x44,0x21
+ 29+  8964 10 D9 A4 71
+ 29+  8968 40 11 E4 B9
+ 29+  896C 90 69 44 21
+ 29+  8970 00 E1 C4 A9  DB  0x00,0xE1,0xC4,0xA9,0x90,0x79,0x64,0x51,0x40,0x31,0x24,0x19,0x10,0x09,0x04,0x01
+ 29+  8974 90 79 64 51
+ 29+  8978 40 31 24 19
+ 29+  897C 10 09 04 01
+ 29+  8980 00 01 04 09  DB  0x00,0x01,0x04,0x09,0x10,0x19,0x24,0x31,0x40,0x51,0x64,0x79,0x90,0xA9,0xC4,0xE1
+ 29+  8984 10 19 24 31
+ 29+  8988 40 51 64 79
+ 29+  898C 90 A9 C4 E1
+ 29+  8990 00 21 44 69  DB  0x00,0x21,0x44,0x69,0x90,0xB9,0xE4,0x11,0x40,0x71,0xA4,0xD9,0x10,0x49,0x84,0xC1
+ 29+  8994 90 B9 E4 11
+ 29+  8998 40 71 A4 D9
+ 29+  899C 10 49 84 C1
+ 29+  89A0 00 41 84 C9  DB  0x00,0x41,0x84,0xC9,0x10,0x59,0xA4,0xF1,0x40,0x91,0xE4,0x39,0x90,0xE9,0x44,0xA1
+ 29+  89A4 10 59 A4 F1
+ 29+  89A8 40 91 E4 39
+ 29+  89AC 90 E9 44 A1
+ 29+  89B0 00 61 C4 29  DB  0x00,0x61,0xC4,0x29,0x90,0xF9,0x64,0xD1,0x40,0xB1,0x24,0x99,0x10,0x89,0x04,0x81
+ 29+  89B4 90 F9 64 D1
+ 29+  89B8 40 B1 24 99
+ 29+  89BC 10 89 04 81
+ 29+  89C0 00 81 04 89  DB  0x00,0x81,0x04,0x89,0x10,0x99,0x24,0xB1,0x40,0xD1,0x64,0xF9,0x90,0x29,0xC4,0x61
+ 29+  89C4 10 99 24 B1
+ 29+  89C8 40 D1 64 F9
+ 29+  89CC 90 29 C4 61
+ 29+  89D0 00 A1 44 E9  DB  0x00,0xA1,0x44,0xE9,0x90,0x39,0xE4,0x91,0x40,0xF1,0xA4,0x59,0x10,0xC9,0x84,0x41
+ 29+  89D4 90 39 E4 91
+ 29+  89D8 40 F1 A4 59
+ 29+  89DC 10 C9 84 41
+ 29+  89E0 00 C1 84 49  DB  0x00,0xC1,0x84,0x49,0x10,0xD9,0xA4,0x71,0x40,0x11,0xE4,0xB9,0x90,0x69,0x44,0x21
+ 29+  89E4 10 D9 A4 71
+ 29+  89E8 40 11 E4 B9
+ 29+  89EC 90 69 44 21
+ 29+  89F0 00 E1 C4 A9  DB  0x00,0xE1,0xC4,0xA9,0x90,0x79,0x64,0x51,0x40,0x31,0x24,0x19,0x10,0x09,0x04,0x01
+ 29+  89F4 90 79 64 51
+ 29+  89F8 40 31 24 19
+ 29+  89FC 10 09 04 01
+ 29+  8A00              			ENDLUA
+ 30+  8A00
+ 31+  8A00              QMULTABH:		LUA ALLPASS
+ 32+  8A00 ~            			for i = 0, 255, 16 do
+ 33+  8A00 ~            				s = ""
+ 34+  8A00 ~            				sep = " 0x"
+ 35+  8A00 ~            				for j = i, i+15 do
+ 36+  8A00 ~            					h = math.floor((j * j) / 256)
+ 37+  8A00 ~            					l = (j * j) - (h * 256)
+ 38+  8A00 ~            					s = s .. string.format("%s%02X", sep, h)
+ 39+  8A00 ~            					sep = ",0x"
+ 40+  8A00 ~            				end
+ 41+  8A00 ~            				_pc("DB " .. s)
+ 42+  8A00 ~            			end
+ 43+  8A00 00 00 00 00  DB  0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+ 43+  8A04 00 00 00 00
+ 43+  8A08 00 00 00 00
+ 43+  8A0C 00 00 00 00
+ 43+  8A10 01 01 01 01  DB  0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x02,0x02,0x02,0x02,0x02,0x03,0x03,0x03,0x03
+ 43+  8A14 01 01 01 02
+ 43+  8A18 02 02 02 02
+ 43+  8A1C 03 03 03 03
+ 43+  8A20 04 04 04 04  DB  0x04,0x04,0x04,0x04,0x05,0x05,0x05,0x05,0x06,0x06,0x06,0x07,0x07,0x07,0x08,0x08
+ 43+  8A24 05 05 05 05
+ 43+  8A28 06 06 06 07
+ 43+  8A2C 07 07 08 08
+ 43+  8A30 09 09 09 0A  DB  0x09,0x09,0x09,0x0A,0x0A,0x0A,0x0B,0x0B,0x0C,0x0C,0x0D,0x0D,0x0E,0x0E,0x0F,0x0F
+ 43+  8A34 0A 0A 0B 0B
+ 43+  8A38 0C 0C 0D 0D
+ 43+  8A3C 0E 0E 0F 0F
+ 43+  8A40 10 10 11 11  DB  0x10,0x10,0x11,0x11,0x12,0x12,0x13,0x13,0x14,0x14,0x15,0x15,0x16,0x17,0x17,0x18
+ 43+  8A44 12 12 13 13
+ 43+  8A48 14 14 15 15
+ 43+  8A4C 16 17 17 18
+ 43+  8A50 19 19 1A 1A  DB  0x19,0x19,0x1A,0x1A,0x1B,0x1C,0x1C,0x1D,0x1E,0x1E,0x1F,0x20,0x21,0x21,0x22,0x23
+ 43+  8A54 1B 1C 1C 1D
+ 43+  8A58 1E 1E 1F 20
+ 43+  8A5C 21 21 22 23
+ 43+  8A60 24 24 25 26  DB  0x24,0x24,0x25,0x26,0x27,0x27,0x28,0x29,0x2A,0x2B,0x2B,0x2C,0x2D,0x2E,0x2F,0x30
+ 43+  8A64 27 27 28 29
+ 43+  8A68 2A 2B 2B 2C
+ 43+  8A6C 2D 2E 2F 30
+ 43+  8A70 31 31 32 33  DB  0x31,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x3A,0x3B,0x3C,0x3D,0x3E,0x3F
+ 43+  8A74 34 35 36 37
+ 43+  8A78 38 39 3A 3B
+ 43+  8A7C 3C 3D 3E 3F
+ 43+  8A80 40 41 42 43  DB  0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4A,0x4B,0x4C,0x4D,0x4E,0x4F
+ 43+  8A84 44 45 46 47
+ 43+  8A88 48 49 4A 4B
+ 43+  8A8C 4C 4D 4E 4F
+ 43+  8A90 51 52 53 54  DB  0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x59,0x5A,0x5B,0x5C,0x5D,0x5F,0x60,0x61,0x62
+ 43+  8A94 55 56 57 59
+ 43+  8A98 5A 5B 5C 5D
+ 43+  8A9C 5F 60 61 62
+ 43+  8AA0 64 65 66 67  DB  0x64,0x65,0x66,0x67,0x69,0x6A,0x6B,0x6C,0x6E,0x6F,0x70,0x72,0x73,0x74,0x76,0x77
+ 43+  8AA4 69 6A 6B 6C
+ 43+  8AA8 6E 6F 70 72
+ 43+  8AAC 73 74 76 77
+ 43+  8AB0 79 7A 7B 7D  DB  0x79,0x7A,0x7B,0x7D,0x7E,0x7F,0x81,0x82,0x84,0x85,0x87,0x88,0x8A,0x8B,0x8D,0x8E
+ 43+  8AB4 7E 7F 81 82
+ 43+  8AB8 84 85 87 88
+ 43+  8ABC 8A 8B 8D 8E
+ 43+  8AC0 90 91 93 94  DB  0x90,0x91,0x93,0x94,0x96,0x97,0x99,0x9A,0x9C,0x9D,0x9F,0xA0,0xA2,0xA4,0xA5,0xA7
+ 43+  8AC4 96 97 99 9A
+ 43+  8AC8 9C 9D 9F A0
+ 43+  8ACC A2 A4 A5 A7
+ 43+  8AD0 A9 AA AC AD  DB  0xA9,0xAA,0xAC,0xAD,0xAF,0xB1,0xB2,0xB4,0xB6,0xB7,0xB9,0xBB,0xBD,0xBE,0xC0,0xC2
+ 43+  8AD4 AF B1 B2 B4
+ 43+  8AD8 B6 B7 B9 BB
+ 43+  8ADC BD BE C0 C2
+ 43+  8AE0 C4 C5 C7 C9  DB  0xC4,0xC5,0xC7,0xC9,0xCB,0xCC,0xCE,0xD0,0xD2,0xD4,0xD5,0xD7,0xD9,0xDB,0xDD,0xDF
+ 43+  8AE4 CB CC CE D0
+ 43+  8AE8 D2 D4 D5 D7
+ 43+  8AEC D9 DB DD DF
+ 43+  8AF0 E1 E2 E4 E6  DB  0xE1,0xE2,0xE4,0xE6,0xE8,0xEA,0xEC,0xEE,0xF0,0xF2,0xF4,0xF6,0xF8,0xFA,0xFC,0xFE
+ 43+  8AF4 E8 EA EC EE
+ 43+  8AF8 F0 F2 F4 F6
+ 43+  8AFC F8 FA FC FE
+ 43+  8B00              			ENDLUA
+ 44+  8B00
+ 45+  8B00              ; 8-bit unsigned quick multiply, with divide by 256 and negative result
+ 46+  8B00              ; Returns A=-(B*C)/256
+ 47+  8B00              ;
+ 48+  8B00 CD 06 8B     MUL8_DIV256_NEG:	CALL MUL8_DIV256
+ 49+  8B03 ED 44        			NEG
+ 50+  8B05 C9           			RET
+ 51+  8B06
+ 52+  8B06              ; 8-bit unsigned quick multiply, with divide by 256
+ 53+  8B06              ; Returns A=(B*C)/256
+ 54+  8B06              ;
+ 55+  8B06 26 8A        MUL8_DIV256:		LD H,high QMULTABH
+ 56+  8B08 78           		 	LD A,B
+ 57+  8B09 91           			SUB C
+ 58+  8B0A 30 0B        			JR NC,1F
+ 59+  8B0C ED 44        			NEG
+ 60+  8B0E CB 3F        			SRL A
+ 61+  8B10 4F           			LD C,A
+ 62+  8B11 80           			ADD A,B
+ 63+  8B12 6F           			LD L,A
+ 64+  8B13 7E           			LD A,(HL)
+ 65+  8B14 69           			LD L,C
+ 66+  8B15 96           			SUB (HL)
+ 67+  8B16 C9           			RET
+ 68+  8B17 CB 3F        1:			SRL A
+ 69+  8B19 47           			LD B,A
+ 70+  8B1A 81           			ADD A,C
+ 71+  8B1B 6F           			LD L,A
+ 72+  8B1C 7E           			LD A,(HL)
+ 73+  8B1D 68           			LD L,B
+ 74+  8B1E 96           			SUB (HL)
+ 75+  8B1F C9           			RET
+ 76+  8B20
+ 77+  8B20              ; 16-bit signed multiply
+ 78+  8B20              ; Returns BC=D*E
+ 79+  8B20              ; Main entry point: QMUL16S
+ 80+  8B20              ;
+ 81+  8B20 7A           1:			LD A,D
+ 82+  8B21 ED 44        			NEG
+ 83+  8B23 57           			LD D,A
+ 84+  8B24 CB 7B        			BIT 7,E
+ 85+  8B26 28 12        			JR Z,MUL16_NEG
+ 86+  8B28 7B           			LD A,E
+ 87+  8B29 ED 44        			NEG
+ 88+  8B2B 5F           			LD E,A
+ 89+  8B2C 18 17        			JR MUL16
+ 90+  8B2E CB 7A        MUL16S:			BIT 7,D
+ 91+  8B30 20 EE        			JR NZ,1B
+ 92+  8B32 CB 7B        			BIT 7,E
+ 93+  8B34 28 0F        			JR Z,MUL16
+ 94+  8B36 7B           			LD A,E
+ 95+  8B37 ED 44        			NEG
+ 96+  8B39 5F           			LD E,A
+ 97+  8B3A
+ 98+  8B3A              ; 16-bit unsigned multiply with negative result
+ 99+  8B3A              ; Returns BC=D*E
+100+  8B3A              ;
+101+  8B3A CD 45 8B     MUL16_NEG:		CALL MUL16
+102+  8B3D AF           			XOR A
+103+  8B3E 67           			LD H,A
+104+  8B3F 6F           			LD L,A
+105+  8B40 ED 42        			SBC HL,BC
+106+  8B42 44           			LD B,H
+107+  8B43 4D           			LD C,L
+108+  8B44 C9           			RET
+109+  8B45
+110+  8B45              ; 16-bit unsigned multiply
+111+  8B45              ; Returns BC=D*E
+112+  8B45              ;
+113+  8B45 26 89        MUL16:			LD H,high QMULTABL
+114+  8B47 7A           			LD A,D
+115+  8B48 93           			SUB E
+116+  8B49 38 26        			JR C, 2F
+117+  8B4B CB 3F        			SRL A
+118+  8B4D 47           			LD B,A
+119+  8B4E 38 0E        			JR C, 1F
+120+  8B50 83           			ADD A,E
+121+  8B51 4F           			LD C,A
+122+  8B52 69           			LD L,C
+123+  8B53 7E           			LD A,(HL)
+124+  8B54 68           			LD L,B
+125+  8B55 96           			SUB (HL)
+126+  8B56 69           			LD L,C
+127+  8B57 4F           			LD C,A
+128+  8B58 24           			INC H
+129+  8B59 7E           			LD A,(HL)
+130+  8B5A 68           			LD L,B
+131+  8B5B 9E           			SBC A,(HL)
+132+  8B5C 47           			LD B,A
+133+  8B5D C9           			RET
+134+  8B5E 83           1:			ADD A,E
+135+  8B5F 4F           			LD C,A
+136+  8B60 69           			LD L,C
+137+  8B61 7E           			LD A,(HL)
+138+  8B62 68           			LD L,B
+139+  8B63 96           			SUB (HL)
+140+  8B64 69           			LD L,C
+141+  8B65 4F           			LD C,A
+142+  8B66 24           			INC H
+143+  8B67 7E           			LD A,(HL)
+144+  8B68 68           			LD L,B
+145+  8B69 9E           			SBC A,(HL)
+146+  8B6A 47           			LD B,A
+147+  8B6B 79           			LD A,C
+148+  8B6C 83           			ADD A,E
+149+  8B6D 4F           			LD C,A
+150+  8B6E D0           			RET NC
+151+  8B6F 04           			INC B
+152+  8B70 C9           			RET
+153+  8B71 ED 44        2:			NEG
+154+  8B73 CB 3F        			SRL A
+155+  8B75 47           			LD B,A
+156+  8B76 38 0E        			JR C,3F
+157+  8B78 82           			ADD A,D
+158+  8B79 4F           			LD C,A
+159+  8B7A 69           			LD L,C
+160+  8B7B 7E           			LD A,(HL)
+161+  8B7C 68           			LD L,B
+162+  8B7D 96           			SUB (HL)
+163+  8B7E 69           			LD L,C
+164+  8B7F 4F           			LD C,A
+165+  8B80 24           			INC H
+166+  8B81 7E           			LD A,(HL)
+167+  8B82 68           			LD L,B
+168+  8B83 9E           			SBC A,(HL)
+169+  8B84 47           			LD B,A
+170+  8B85 C9           			RET
+171+  8B86 82           3:			ADD A,D
+172+  8B87 4F           			LD C,A
+173+  8B88 69           			LD L,C
+174+  8B89 7E           			LD A,(HL)
+175+  8B8A 68           			LD L,B
+176+  8B8B 96           			SUB (HL)
+177+  8B8C 69           			LD L,C
+178+  8B8D 4F           			LD C,A
+179+  8B8E 24           			INC H
+180+  8B8F 7E           			LD A,(HL)
+181+  8B90 68           			LD L,B
+182+  8B91 9E           			SBC A,(HL)
+183+  8B92 47           			LD B,A
+184+  8B93 79           			LD A,C
+185+  8B94 82           			ADD A,D
+186+  8B95 4F           			LD C,A
+187+  8B96 D0           			RET NC
+188+  8B97 04           			INC B
+189+  8B98 C9           			RET
+190+  8B99
+191+  8B99              ; Same as MUL24, but the answer is negative
+192+  8B99              ; AHL=-(DE*BC)
+193+  8B99              ;
+194+  8B99 CD A8 8B     MUL24_NEG:		CALL MUL24
+195+  8B9C EE FF        			XOR 255
+196+  8B9E EB           			EX DE,HL
+197+  8B9F 21 00 00     			LD HL,0
+198+  8BA2 ED 52        			SBC HL, DE
+199+  8BA4 3F           			CCF
+200+  8BA5 CE 00        			ADC A,0
+201+  8BA7 C9           			RET
+202+  8BA8
+203+  8BA8              ; Multiply (24 bit)
+204+  8BA8              ; AHL=DE*BC
+205+  8BA8              ;
+206+  8BA8 AF           MUL24:			XOR A
+207+  8BA9 67           			LD H,A
+208+  8BAA 6F           			LD L,A
+209+  8BAB 08           			EX AF,AF
+210+  8BAC 3E 10        			LD A,16
+211+  8BAE 08           1:			EX AF,AF
+212+  8BAF 29           			ADD HL,HL
+213+  8BB0 17           			RLA
+214+  8BB1 CB 11        			RL C
+215+  8BB3 CB 10        			RL B
+216+  8BB5 30 03        			JR NC, 2F
+217+  8BB7 19           			ADD HL,DE
+218+  8BB8 CE 00        			ADC A,0
+219+  8BBA 08           2:			EX AF,AF
+220+  8BBB 3D           			DEC A
+221+  8BBC 20 F0        			JR NZ,1B
+222+  8BBE 08           			EX AF,AF
+223+  8BBF C9           			RET
+224+  8BC0
+225+  8BC0              ; Divide (16 bit)
+226+  8BC0              ; Returns HL=HL/BC
+227+  8BC0              ;
+228+  8BC0 E5           DIV16:			PUSH HL
+229+  8BC1 AF           			XOR A
+230+  8BC2 67           			LD H,A
+231+  8BC3 6F           			LD L,A
+232+  8BC4 D9           			EXX
+233+  8BC5 06 10        			LD B,16
+234+  8BC7 E1           			POP HL
+235+  8BC8 ED 6A        1:			ADC HL,HL
+236+  8BCA D9           			EXX
+237+  8BCB ED 6A        			ADC HL,HL
+238+  8BCD 17           			RLA
+239+  8BCE ED 42        			SBC HL,BC
+240+  8BD0 30 01        			JR NC,2F
+241+  8BD2 09           			ADD HL,BC
+242+  8BD3 3F           2:			CCF
+243+  8BD4 D9           			EXX
+244+  8BD5 10 F1        			DJNZ 1B
+245+  8BD7 ED 6A        			ADC HL,HL
+246+  8BD9 C9           			RET
+247+  8BDA
+248+  8BDA              ; Divide (24 bit)
+249+  8BDA              ; Returns result in AHL
+250+  8BDA              ;
+251+  8BDA 00 00 00     DIVIDEND:		DS 3
+252+  8BDD 00 00 00     DIVISOR:		DS 3
+253+  8BE0
+254+  8BE0 ED 4B DD 8B  DIV24:			LD BC,(DIVISOR)
+255+  8BE4 3A DF 8B     			LD A,(DIVISOR+2)
+256+  8BE7 57           			LD D,A
+257+  8BE8 AF           			XOR A
+258+  8BE9 67           			LD H,A
+259+  8BEA 6F           			LD L,A
+260+  8BEB D9           			EXX
+261+  8BEC 06 18        			LD B,24
+262+  8BEE 2A DA 8B     			LD HL,(DIVIDEND)
+263+  8BF1 3A DC 8B     			LD A,(DIVIDEND+2)
+264+  8BF4 5F           			LD E,A
+265+  8BF5 AF           			XOR A
+266+  8BF6 ED 6A        1:			ADC HL,HL
+267+  8BF8 CB 13        			RL E
+268+  8BFA D9           			EXX
+269+  8BFB ED 6A        			ADC HL,HL
+270+  8BFD 17           			RLA
+271+  8BFE ED 42        			SBC HL,BC
+272+  8C00 9A           			SBC D
+273+  8C01 30 02        			JR NC,2F
+274+  8C03 09           			ADD HL,BC
+275+  8C04 8A           			ADC D
+276+  8C05 3F           2:			CCF
+277+  8C06 D9           			EXX
+278+  8C07 10 ED        		 	DJNZ 1B
+279+  8C09 ED 6A        			ADC HL,HL
+280+  8C0B CB 13        			RL E
+281+  8C0D 7B           			LD A,E
+282+  8C0E C9           			RET
+283+  8C0F
+284+  8C0F              ; Square Root (16 bit)
+285+  8C0F              ; HL=number to find square root of
+286+  8C0F              ; Returns result in A
+287+  8C0F              ;
+288+  8C0F 11 01 00     SQR16: 			LD DE,1
+289+  8C12 AF           			XOR A
+290+  8C13 3D           			DEC A
+291+  8C14 ED 52        1:			SBC HL,DE
+292+  8C16 13           			INC DE
+293+  8C17 13           			INC DE
+294+  8C18 3C           			INC A
+295+  8C19 30 F9        			JR NC,1B
+296+  8C1B C9           			RET
+297+  8C1C
+298+  8C1C              ; Square Root (32 bit)
+299+  8C1C              ; BCDE=number to find square root of
+300+  8C1C              ; Returns result in DE
+301+  8C1C              ;
+302+  8C1C 78           SQR32:			LD A,B
+303+  8C1D D5           			PUSH DE
+304+  8C1E DD E1        			POP IX
+305+  8C20 16 00        			LD D,0
+306+  8C22 5A           			LD E,D
+307+  8C23 62           			LD H,D
+308+  8C24 6A           			LD L,D
+309+  8C25 06 10        			LD B,16
+310+  8C27 D6 40        1:			SUB 0x40
+311+  8C29 ED 52        			SBC HL,DE
+312+  8C2B 30 04        			JR NC,2F
+313+  8C2D C6 40        			ADD A,0x40
+314+  8C2F ED 5A        			ADC HL,DE
+315+  8C31 3F           2:			CCF
+316+  8C32 CB 13        			RL E
+317+  8C34 CB 12        			RL D
+318+  8C36 DD 29        			ADD IX,IX
+319+  8C38 CB 11        			RL C
+320+  8C3A 17           			RLA
+321+  8C3B ED 6A        			ADC HL,HL
+322+  8C3D 10 E8        			DJNZ 1B
+323+  8C3F C9           			RET
+324+  8C40
+325+  8C40              ; 16 bit random number routine I found on the web
+326+  8C40              ; Returns a pseudo-random number in the HL register
+327+  8C40              ;
+328+  8C40              RND16_SEED:		EQU 12345
+329+  8C40 11 39 30     RND16:			LD DE,RND16_SEED
+330+  8C43 7A           			LD A,D
+331+  8C44 63           			LD H,E
+332+  8C45 2E FD        			LD L,253
+333+  8C47 B7           			OR A
+334+  8C48 ED 52        			SBC HL,DE
+335+  8C4A DE 00        			SBC A,0
+336+  8C4C ED 52        			SBC HL,DE
+337+  8C4E 16 00        			LD D,0
+338+  8C50 9A           			SBC A,D
+339+  8C51 5F           			LD E,A
+340+  8C52 ED 52        			SBC HL,DE
+341+  8C54 30 01        			JR NC,1F
+342+  8C56 23           			INC HL
+343+  8C57 22 41 8C     1:			LD (RND16+1),HL
+344+  8C5A C9           			RET
+# file closed: C:\work\oldtyper\src\speccy\demo-toolchain\demo\../lib/math.z80
+ 30   8C5B
+ 31   8C5B              ; MAIN
+ 32   8C5B              ; - Initialise some stuff
+ 33   8C5B              ; - Set up the interrupt routines
+ 34   8C5B              ; NB:
+ 35   8C5B              ; For details on how this interrupt routine works, read
+ 36   8C5B              ; http://www.breakintoprogram.co.uk/computers/zx-spectrum/interrupts
+ 37   8C5B              ; Will only work on the 48K Spectrum!
+ 38   8C5B              ;
+ 39   8C5B F3           MAIN:			DI					; Disable interrupts
+ 40   8C5C 31 F0 FF     			LD SP, Stack_Top
+ 41   8C5F 3E 00        			LD A,0x00
+ 42   8C61 D3 FE        			OUT 254,A
+ 43   8C63 3E 47        			LD A,0x47
+ 44   8C65 CD 4B 83     			CALL Clear_Screen			; Clear the screen
+ 45   8C68 CD DD 8C     			CALL Initialise_Sprites			; Initialise the sprites
+ 46   8C6B 21 D0 01     			LD HL, 16 * (Demo_Map_Length - 16)
+ 47   8C6E 22 60 87     			LD (Vertical_Scroll_Offset), HL
+ 48   8C71 21 90 8C     			LD HL,Interrupt
+ 49   8C74 DD 21 F0 FF  			LD IX,0xFFF0				; This code is to be written at 0xFF
+ 50   8C78 DD 36 04 C3  			LD (IX+04h),0xC3			; Opcode for JP
+ 51   8C7C DD 75 05     			LD (IX+05h),L				; Store the address of the interrupt routine in
+ 52   8C7F DD 74 06     			LD (IX+06h),H
+ 53   8C82 DD 36 0F 18  			LD (IX+0Fh),0x18			; Opcode for JR; this will do JR to FFF4h
+ 54   8C86 3E 39        			LD A,0x39	        		; Interrupt table at page 0x3900 (ROM)
+ 55   8C88 ED 47        			LD I,A					; Set the interrupt register to that page
+ 56   8C8A ED 5E        			IM 2					; Set the interrupt mode
+ 57   8C8C FB           			EI					; Enable interrupts
+ 58   8C8D
+ 59   8C8D 76           LOOP:			HALT					; Just loop round doing nothing now
+ 60   8C8E 18 FD        			JR LOOP					; All the work is done in the Interrupt routine
+ 61   8C90
+ 62   8C90              ; The Interrupt routine
+ 63   8C90              ; NB:
+ 64   8C90              ; The interrupts are disabled to ensure that this interrupt cannot be interrupted.
+ 65   8C90              ;
+ 66   8C90 F3           Interrupt:		DI					; Disable interrupts
+ 67   8C91 F5           			PUSH AF					; Save all the registers on the stack
+ 68   8C92 C5           			PUSH BC					; This is probably not necessary unless
+ 69   8C93 D5           			PUSH DE					; we're looking at returning cleanly
+ 70   8C94 E5           			PUSH HL					; back to BASIC at some point
+ 71   8C95 DD E5        			PUSH IX
+ 72   8C97 D9           			EXX
+ 73   8C98 08           			EX AF,AF'
+ 74   8C99 F5           			PUSH AF
+ 75   8C9A C5           			PUSH BC
+ 76   8C9B D5           			PUSH DE
+ 77   8C9C E5           			PUSH HL
+ 78   8C9D FD E5        			PUSH IY
+ 79   8C9F
+ 80   8C9F              ;			LD A,1					; Change the border colour
+ 81   8C9F              ;			OUT (254),A				; Used for timing routines visually
+ 82   8C9F 21 32 8D     			LD HL, Demo_Map				; Initialise the scroll
+ 83   8CA2 CD 78 85     			CALL Initialise_Scroll			; This creates all the self-modding code
+ 84   8CA5              ;			LD A,0					; code in here like a music driver
+ 85   8CA5              ;			OUT (254),A
+ 86   8CA5 CD 79 86     			CALL Scroll				; Render the scroll to the screen
+ 87   8CA8 CD 1E 81     			CALL Render_Sprites			; And render the sprites
+ 88   8CAB CD CA 8C     			CALL Move_Scroll			; Move the scroll
+ 89   8CAE CD C2 80     			CALL Handle_Sprites			; Move the sprites
+ 90   8CB1 CD 44 84     			CALL Scroll_Attr			; Add the colours
+ 91   8CB4              ;			LD A,0
+ 92   8CB4              ;			OUT (254),A
+ 93   8CB4
+ 94   8CB4 FD E1        			POP IY					; Restore all the registers
+ 95   8CB6 E1           			POP HL
+ 96   8CB7 D1           			POP DE
+ 97   8CB8 C1           			POP BC
+ 98   8CB9 F1           			POP AF
+ 99   8CBA D9           			EXX
+100   8CBB 08           			EX AF,AF'
+101   8CBC DD E1        			POP IX
+102   8CBE E1           			POP HL
+103   8CBF D1           			POP DE
+104   8CC0 C1           			POP BC
+105   8CC1 F1           			POP AF
+106   8CC2 FB           			EI					; Enable interrupts
+107   8CC3 C9           			RET					; And return
+108   8CC4
+109   8CC4              ; A simple delay loop
+110   8CC4              ;
+111   8CC4 0B           Delay:			DEC BC
+112   8CC5 78           			LD A,B
+113   8CC6 B1           			OR C
+114   8CC7 20 FB        			JR NZ, Delay
+115   8CC9 C9           			RET
+116   8CCA
+117   8CCA              ; Move the scroll offset
+118   8CCA              ;
+119   8CCA 2A 60 87     Move_Scroll:		LD HL, (Vertical_Scroll_Offset)
+120   8CCD 01 01 00     Move_Scroll_Speed:	LD BC, 1
+121   8CD0 A7           			AND A
+122   8CD1 ED 42        			SBC HL, BC
+123   8CD3 30 04        			JR NC, Move_Scroll_1			; Boundary check
+124   8CD5 01 D0 01     			LD BC, 16 * (Demo_Map_Length - 16) 	; If we've reached the top, then
+125   8CD8 09           			ADD HL, BC				; wrap back to the bottom
+126   8CD9 22 60 87     Move_Scroll_1:		LD (Vertical_Scroll_Offset), HL
+127   8CDC C9           			RET
+128   8CDD
+129   8CDD              ; Initialise the sprites
+130   8CDD              ;
+131   8CDD DD 21 4B 82  Initialise_Sprites:	LD IX,Sprite_Data			; Where the sprite data is stored
+132   8CE1 06 0B        			LD B,11					; Number of sprites to initialise
+133   8CE3 0E 08        			LD C,8					; Sprite Y coordinate
+134   8CE5 CD 40 8C     Initialise_Sprites_1:	CALL RND16				; Get a random X coordinate
+135   8CE8 CB BD        			RES 7, L
+136   8CEA DD 75 02     			LD (IX+Sprite_X), L			; And store in Sprite_X
+137   8CED DD 71 03     			LD (IX+Sprite_Y), C			; Store the Y coordinate
+138   8CF0 79           			LD A,C					; And increment by 13 for next sprite
+139   8CF1 C6 10        			ADD A,16
+140   8CF3 4F           			LD C,A
+141   8CF4 21 16 8D     			LD HL,Demo_Sprite_Logic			; Set the address of the sprite movement logic
+142   8CF7 DD 75 04     			LD (IX+Sprite_Logic),L
+143   8CFA DD 74 05     			LD (IX+Sprite_Logic+1),H
+144   8CFD 21 4A 99     			LD HL,Sprite_Bubble			; Set the address of the sprite graphic data
+145   8D00 DD 75 00     			LD (IX+Sprite_Image),L
+146   8D03 DD 74 01     			LD (IX+Sprite_Image+1),H
+147   8D06 78           			LD A,B					; Set an X velocity
+148   8D07 E6 03        			AND %00000011
+149   8D09 C6 01        			ADD A,1
+150   8D0B DD 77 07     			LD (IX+Sprite_Data_1), A		; And store this in Sprite_Data_1
+151   8D0E 11 0C 00     			LD DE,Sprite_Data_Block_Size		; Increment IX to point to the next
+152   8D11 DD 19        			ADD IX,DE				; block of sprite data
+153   8D13 10 D0        			DJNZ Initialise_Sprites_1		; And repeat
+154   8D15 C9           			RET
+155   8D16
+156   8D16              ; The demo sprite logic
+157   8D16              ;
+158   8D16 DD 7E 02     Demo_Sprite_Logic:	LD A,(IX+Sprite_X)			; Move the sprite by
+159   8D19 DD 86 07     			ADD A,(IX+Sprite_Data_1)		; adding its velocity to its X coordinate
+160   8D1C DD 77 02     			LD (IX+Sprite_X),A
+161   8D1F D8           			RET C					; C set if we're still on screen
+162   8D20 FE B0        			CP 176					; CP with 176 (right pixel boundary - sprite width)
+163   8D22 D8           			RET C					; C set if we're still on screen
+164   8D23 DD 7E 07     			LD A,(IX+Sprite_Data_1)			; Otherwise, negate the velocity
+165   8D26 ED 44        			NEG
+166   8D28 DD 77 07     			LD (IX+Sprite_Data_1),A
+167   8D2B DD 86 02     			ADD A,(IX+Sprite_X)			; And move the sprite back on screen
+168   8D2E DD 77 02     			LD (IX+Sprite_X),A
+169   8D31 C9           			RET
+170   8D32
+171   8D32              ; Demo Map
+172   8D32              ; Each map row contains 16 byts
+173   8D32              ; - Word      : Tileset address for this row
+174   8D32              ; - Word      : Currently unused, could be used for flags - helpful padding to make each row a convenient length
+175   8D32              ; - Byte x 12 : A tile number for each column (see below)
+176   8D32              ; NB:
+177   8D32              ; Ideally this would be pre-processed from some more compressed map data. It is essentially
+178   8D32              ; a lookup table that can be quickly converted to PUSH instructions with minimal maths -
+179   8D32              ; only use the high nibble so I don't have to shift left 4 times. The bottom nibble may be used
+180   8D32              ; for flags or colour information - it is masked out by the scroll routine.
+181   8D32              ;
+182   8D32              ; Each PUSH instruction corresponds to a tile that can be stored on a given line
+183   8D32              ; Push BC = 00 - This is the blank tile
+184   8D32              ; Push DE = 10
+185   8D32              ; Push HL = 20
+186   8D32              ; Push AF = 30
+187   8D32              ; Push IX = 40
+188   8D32              ; Push IY = 50
+189   8D32              ;
+190   8D32              MAP_ROW:		MACRO tileset,C01,C02,C03,C04,C05,C06,C07,C08,C09,C10,C11,C12
+191   8D32 ~            			DW tileset, 0x0000
+192   8D32 ~            			DB C12<<4,C11<<4,C10<<4,C09<<4,C08<<4,C07<<4
+193   8D32 ~            			DB C06<<4,C05<<4,C04<<4,C03<<4,C02<<4,C01<<4
+194   8D32              			ENDM
+195   8D32
+196   8D32              Demo_Map:		MAP_ROW Tileset_07, 0,0,0,0,0,0,0,0,0,0,0,0
+196   8D32 12 95 00 00 >			DW Tileset_07, 0x0000
+196   8D36 00 00 00 00 >			DB 0<<4,0<<4,0<<4,0<<4,0<<4,0<<4
+196   8D3A 00 00       >
+196   8D3C 00 00 00 00 >			DB 0<<4,0<<4,0<<4,0<<4,0<<4,0<<4
+196   8D40 00 00       >
+197   8D42                                      MAP_ROW Tileset_08, 4,4,4,4,4,4,4,4,2,3,4,4
+197   8D42 EA 95 00 00 >			DW Tileset_08, 0x0000
+197   8D46 40 40 30 20 >			DB 4<<4,4<<4,3<<4,2<<4,4<<4,4<<4
+197   8D4A 40 40       >
+197   8D4C 40 40 40 40 >			DB 4<<4,4<<4,4<<4,4<<4,4<<4,4<<4
+197   8D50 40 40       >
+198   8D52                                      MAP_ROW Tileset_02, 3,3,3,3,3,3,3,3,4,5,0,3
+198   8D52 DA 90 00 00 >			DW Tileset_02, 0x0000
+198   8D56 30 00 50 40 >			DB 3<<4,0<<4,5<<4,4<<4,3<<4,3<<4
+198   8D5A 30 30       >
+198   8D5C 30 30 30 30 >			DB 3<<4,3<<4,3<<4,3<<4,3<<4,3<<4
+198   8D60 30 30       >
+199   8D62                                      MAP_ROW Tileset_07, 3,3,3,3,3,3,3,3,1,1,1,3
+199   8D62 12 95 00 00 >			DW Tileset_07, 0x0000
+199   8D66 30 10 10 10 >			DB 3<<4,1<<4,1<<4,1<<4,3<<4,3<<4
+199   8D6A 30 30       >
+199   8D6C 30 30 30 30 >			DB 3<<4,3<<4,3<<4,3<<4,3<<4,3<<4
+199   8D70 30 30       >
+200   8D72                                      MAP_ROW Tileset_08, 5,5,2,3,1,5,5,5,5,5,5,5
+200   8D72 EA 95 00 00 >			DW Tileset_08, 0x0000
+200   8D76 50 50 50 50 >			DB 5<<4,5<<4,5<<4,5<<4,5<<4,5<<4
+200   8D7A 50 50       >
+200   8D7C 50 10 30 20 >			DB 5<<4,1<<4,3<<4,2<<4,5<<4,5<<4
+200   8D80 50 50       >
+201   8D82                                      MAP_ROW Tileset_01, 3,3,4,5,0,3,1,2,0,3,3,3
+201   8D82 02 90 00 00 >			DW Tileset_01, 0x0000
+201   8D86 30 30 30 00 >			DB 3<<4,3<<4,3<<4,0<<4,2<<4,1<<4
+201   8D8A 20 10       >
+201   8D8C 30 00 50 40 >			DB 3<<4,0<<4,5<<4,4<<4,3<<4,3<<4
+201   8D90 30 30       >
+202   8D92                                      MAP_ROW Tileset_02, 3,3,0,0,0,3,4,5,0,3,3,3
+202   8D92 DA 90 00 00 >			DW Tileset_02, 0x0000
+202   8D96 30 30 30 00 >			DB 3<<4,3<<4,3<<4,0<<4,5<<4,4<<4
+202   8D9A 50 40       >
+202   8D9C 30 00 00 00 >			DB 3<<4,0<<4,0<<4,0<<4,3<<4,3<<4
+202   8DA0 30 30       >
+203   8DA2                                      MAP_ROW Tileset_07, 3,3,3,3,3,3,1,1,1,3,3,3
+203   8DA2 12 95 00 00 >			DW Tileset_07, 0x0000
+203   8DA6 30 30 30 10 >			DB 3<<4,3<<4,3<<4,1<<4,1<<4,1<<4
+203   8DAA 10 10       >
+203   8DAC 30 30 30 30 >			DB 3<<4,3<<4,3<<4,3<<4,3<<4,3<<4
+203   8DB0 30 30       >
+204   8DB2                                      MAP_ROW Tileset_09, 4,4,4,4,4,4,4,4,4,4,4,4
+204   8DB2 C2 96 00 00 >			DW Tileset_09, 0x0000
+204   8DB6 40 40 40 40 >			DB 4<<4,4<<4,4<<4,4<<4,4<<4,4<<4
+204   8DBA 40 40       >
+204   8DBC 40 40 40 40 >			DB 4<<4,4<<4,4<<4,4<<4,4<<4,4<<4
+204   8DC0 40 40       >
+205   8DC2                                      MAP_ROW Tileset_02, 0,0,0,0,0,0,0,0,0,0,0,0
+205   8DC2 DA 90 00 00 >			DW Tileset_02, 0x0000
+205   8DC6 00 00 00 00 >			DB 0<<4,0<<4,0<<4,0<<4,0<<4,0<<4
+205   8DCA 00 00       >
+205   8DCC 00 00 00 00 >			DB 0<<4,0<<4,0<<4,0<<4,0<<4,0<<4
+205   8DD0 00 00       >
+206   8DD2                                      MAP_ROW Tileset_11, 4,5,4,5,4,5,4,5,4,5,4,5
+206   8DD2 72 98 00 00 >			DW Tileset_11, 0x0000
+206   8DD6 50 40 50 40 >			DB 5<<4,4<<4,5<<4,4<<4,5<<4,4<<4
+206   8DDA 50 40       >
+206   8DDC 50 40 50 40 >			DB 5<<4,4<<4,5<<4,4<<4,5<<4,4<<4
+206   8DE0 50 40       >
+207   8DE2                                      MAP_ROW Tileset_11, 1,1,1,1,1,1,1,1,1,1,1,1
+207   8DE2 72 98 00 00 >			DW Tileset_11, 0x0000
+207   8DE6 10 10 10 10 >			DB 1<<4,1<<4,1<<4,1<<4,1<<4,1<<4
+207   8DEA 10 10       >
+207   8DEC 10 10 10 10 >			DB 1<<4,1<<4,1<<4,1<<4,1<<4,1<<4
+207   8DF0 10 10       >
+208   8DF2                                      MAP_ROW Tileset_09, 4,4,4,4,4,4,4,4,4,4,4,4
+208   8DF2 C2 96 00 00 >			DW Tileset_09, 0x0000
+208   8DF6 40 40 40 40 >			DB 4<<4,4<<4,4<<4,4<<4,4<<4,4<<4
+208   8DFA 40 40       >
+208   8DFC 40 40 40 40 >			DB 4<<4,4<<4,4<<4,4<<4,4<<4,4<<4
+208   8E00 40 40       >
+209   8E02                                      MAP_ROW Tileset_08, 2,3,1,1,1,1,1,1,1,1,1,1
+209   8E02 EA 95 00 00 >			DW Tileset_08, 0x0000
+209   8E06 10 10 10 10 >			DB 1<<4,1<<4,1<<4,1<<4,1<<4,1<<4
+209   8E0A 10 10       >
+209   8E0C 10 10 10 10 >			DB 1<<4,1<<4,1<<4,1<<4,3<<4,2<<4
+209   8E10 30 20       >
+210   8E12                                      MAP_ROW Tileset_02, 4,5,1,2,0,0,0,0,0,0,0,0
+210   8E12 DA 90 00 00 >			DW Tileset_02, 0x0000
+210   8E16 00 00 00 00 >			DB 0<<4,0<<4,0<<4,0<<4,0<<4,0<<4
+210   8E1A 00 00       >
+210   8E1C 00 00 20 10 >			DB 0<<4,0<<4,2<<4,1<<4,5<<4,4<<4
+210   8E20 50 40       >
+211   8E22                                      MAP_ROW Tileset_06, 3,2,3,5,3,1,1,1,1,1,1,1
+211   8E22 3A 94 00 00 >			DW Tileset_06, 0x0000
+211   8E26 10 10 10 10 >			DB 1<<4,1<<4,1<<4,1<<4,1<<4,1<<4
+211   8E2A 10 10       >
+211   8E2C 10 30 50 30 >			DB 1<<4,3<<4,5<<4,3<<4,2<<4,3<<4
+211   8E30 20 30       >
+212   8E32                                      MAP_ROW Tileset_03, 5,4,5,4,2,3,0,0,0,0,0,1
+212   8E32 B2 91 00 00 >			DW Tileset_03, 0x0000
+212   8E36 10 00 00 00 >			DB 1<<4,0<<4,0<<4,0<<4,0<<4,0<<4
+212   8E3A 00 00       >
+212   8E3C 30 20 40 50 >			DB 3<<4,2<<4,4<<4,5<<4,4<<4,5<<4
+212   8E40 40 50       >
+213   8E42                                      MAP_ROW Tileset_04, 1,4,1,2,4,5,0,0,0,0,0,3
+213   8E42 8A 92 00 00 >			DW Tileset_04, 0x0000
+213   8E46 30 00 00 00 >			DB 3<<4,0<<4,0<<4,0<<4,0<<4,0<<4
+213   8E4A 00 00       >
+213   8E4C 50 40 20 10 >			DB 5<<4,4<<4,2<<4,1<<4,4<<4,1<<4
+213   8E50 40 10       >
+214   8E52                                      MAP_ROW Tileset_06, 4,5,4,5,1,1,1,1,1,1,1,1
+214   8E52 3A 94 00 00 >			DW Tileset_06, 0x0000
+214   8E56 10 10 10 10 >			DB 1<<4,1<<4,1<<4,1<<4,1<<4,1<<4
+214   8E5A 10 10       >
+214   8E5C 10 10 50 40 >			DB 1<<4,1<<4,5<<4,4<<4,5<<4,4<<4
+214   8E60 50 40       >
+215   8E62                                      MAP_ROW Tileset_09, 4,4,4,4,4,4,4,4,4,4,4,4
+215   8E62 C2 96 00 00 >			DW Tileset_09, 0x0000
+215   8E66 40 40 40 40 >			DB 4<<4,4<<4,4<<4,4<<4,4<<4,4<<4
+215   8E6A 40 40       >
+215   8E6C 40 40 40 40 >			DB 4<<4,4<<4,4<<4,4<<4,4<<4,4<<4
+215   8E70 40 40       >
+216   8E72                                      MAP_ROW Tileset_07, 0,0,0,0,0,0,0,0,0,0,0,0
+216   8E72 12 95 00 00 >			DW Tileset_07, 0x0000
+216   8E76 00 00 00 00 >			DB 0<<4,0<<4,0<<4,0<<4,0<<4,0<<4
+216   8E7A 00 00       >
+216   8E7C 00 00 00 00 >			DB 0<<4,0<<4,0<<4,0<<4,0<<4,0<<4
+216   8E80 00 00       >
+217   8E82                                      MAP_ROW Tileset_05, 3,3,3,3,3,3,3,3,3,3,3,3
+217   8E82 62 93 00 00 >			DW Tileset_05, 0x0000
+217   8E86 30 30 30 30 >			DB 3<<4,3<<4,3<<4,3<<4,3<<4,3<<4
+217   8E8A 30 30       >
+217   8E8C 30 30 30 30 >			DB 3<<4,3<<4,3<<4,3<<4,3<<4,3<<4
+217   8E90 30 30       >
+218   8E92                                      MAP_ROW Tileset_06, 0,0,0,0,0,0,0,2,3,0,0,0
+218   8E92 3A 94 00 00 >			DW Tileset_06, 0x0000
+218   8E96 00 00 00 30 >			DB 0<<4,0<<4,0<<4,3<<4,2<<4,0<<4
+218   8E9A 20 00       >
+218   8E9C 00 00 00 00 >			DB 0<<4,0<<4,0<<4,0<<4,0<<4,0<<4
+218   8EA0 00 00       >
+219   8EA2                                      MAP_ROW Tileset_05, 2,2,2,2,2,0,1,4,5,1,2,2
+219   8EA2 62 93 00 00 >			DW Tileset_05, 0x0000
+219   8EA6 20 20 10 50 >			DB 2<<4,2<<4,1<<4,5<<4,4<<4,1<<4
+219   8EAA 40 10       >
+219   8EAC 00 20 20 20 >			DB 0<<4,2<<4,2<<4,2<<4,2<<4,2<<4
+219   8EB0 20 20       >
+220   8EB2                                      MAP_ROW Tileset_06, 1,1,1,1,2,3,5,3,4,5,1,1
+220   8EB2 3A 94 00 00 >			DW Tileset_06, 0x0000
+220   8EB6 10 10 50 40 >			DB 1<<4,1<<4,5<<4,4<<4,3<<4,5<<4
+220   8EBA 30 50       >
+220   8EBC 30 20 10 10 >			DB 3<<4,2<<4,1<<4,1<<4,1<<4,1<<4
+220   8EC0 10 10       >
+221   8EC2                                      MAP_ROW Tileset_06, 1,1,1,1,4,5,4,5,3,1,1,1
+221   8EC2 3A 94 00 00 >			DW Tileset_06, 0x0000
+221   8EC6 10 10 10 30 >			DB 1<<4,1<<4,1<<4,3<<4,5<<4,4<<4
+221   8ECA 50 40       >
+221   8ECC 50 40 10 10 >			DB 5<<4,4<<4,1<<4,1<<4,1<<4,1<<4
+221   8ED0 10 10       >
+222   8ED2                                      MAP_ROW Tileset_07, 1,3,3,3,3,4,2,4,5,1,1,1
+222   8ED2 12 95 00 00 >			DW Tileset_07, 0x0000
+222   8ED6 10 10 10 50 >			DB 1<<4,1<<4,1<<4,5<<4,4<<4,2<<4
+222   8EDA 40 20       >
+222   8EDC 40 30 30 30 >			DB 4<<4,3<<4,3<<4,3<<4,3<<4,1<<4
+222   8EE0 30 10       >
+223   8EE2                                      MAP_ROW Tileset_07, 1,3,3,3,3,0,4,5,1,1,1,1
+223   8EE2 12 95 00 00 >			DW Tileset_07, 0x0000
+223   8EE6 10 10 10 10 >			DB 1<<4,1<<4,1<<4,1<<4,5<<4,4<<4
+223   8EEA 50 40       >
+223   8EEC 00 30 30 30 >			DB 0<<4,3<<4,3<<4,3<<4,3<<4,1<<4
+223   8EF0 30 10       >
+224   8EF2                                      MAP_ROW Tileset_07, 1,3,3,3,3,0,1,1,1,1,1,1
+224   8EF2 12 95 00 00 >			DW Tileset_07, 0x0000
+224   8EF6 10 10 10 10 >			DB 1<<4,1<<4,1<<4,1<<4,1<<4,1<<4
+224   8EFA 10 10       >
+224   8EFC 00 30 30 30 >			DB 0<<4,3<<4,3<<4,3<<4,3<<4,1<<4
+224   8F00 30 10       >
+225   8F02                                      MAP_ROW Tileset_07, 1,3,3,3,3,0,1,1,1,1,1,1
+225   8F02 12 95 00 00 >			DW Tileset_07, 0x0000
+225   8F06 10 10 10 10 >			DB 1<<4,1<<4,1<<4,1<<4,1<<4,1<<4
+225   8F0A 10 10       >
+225   8F0C 00 30 30 30 >			DB 0<<4,3<<4,3<<4,3<<4,3<<4,1<<4
+225   8F10 30 10       >
+226   8F12                                      MAP_ROW Tileset_08, 1,5,5,5,5,0,1,1,2,3,0,1
+226   8F12 EA 95 00 00 >			DW Tileset_08, 0x0000
+226   8F16 10 00 30 20 >			DB 1<<4,0<<4,3<<4,2<<4,1<<4,1<<4
+226   8F1A 10 10       >
+226   8F1C 00 50 50 50 >			DB 0<<4,5<<4,5<<4,5<<4,5<<4,1<<4
+226   8F20 50 10       >
+227   8F22                                      MAP_ROW Tileset_09, 1,4,4,4,4,0,1,1,2,3,0,1
+227   8F22 C2 96 00 00 >			DW Tileset_09, 0x0000
+227   8F26 10 00 30 20 >			DB 1<<4,0<<4,3<<4,2<<4,1<<4,1<<4
+227   8F2A 10 10       >
+227   8F2C 00 40 40 40 >			DB 0<<4,4<<4,4<<4,4<<4,4<<4,1<<4
+227   8F30 40 10       >
+228   8F32                                      MAP_ROW Tileset_09, 1,4,4,4,4,0,1,1,0,0,0,1
+228   8F32 C2 96 00 00 >			DW Tileset_09, 0x0000
+228   8F36 10 00 00 00 >			DB 1<<4,0<<4,0<<4,0<<4,1<<4,1<<4
+228   8F3A 10 10       >
+228   8F3C 00 40 40 40 >			DB 0<<4,4<<4,4<<4,4<<4,4<<4,1<<4
+228   8F40 40 10       >
+229   8F42                                      MAP_ROW Tileset_08, 1,0,0,0,0,0,1,1,1,1,1,2
+229   8F42 EA 95 00 00 >			DW Tileset_08, 0x0000
+229   8F46 20 10 10 10 >			DB 2<<4,1<<4,1<<4,1<<4,1<<4,1<<4
+229   8F4A 10 10       >
+229   8F4C 00 00 00 00 >			DB 0<<4,0<<4,0<<4,0<<4,0<<4,1<<4
+229   8F50 00 10       >
+230   8F52                                      MAP_ROW Tileset_10, 2,2,2,0,0,0,0,0,2,2,2,1
+230   8F52 9A 97 00 00 >			DW Tileset_10, 0x0000
+230   8F56 10 20 20 20 >			DB 1<<4,2<<4,2<<4,2<<4,0<<4,0<<4
+230   8F5A 00 00       >
+230   8F5C 00 00 00 20 >			DB 0<<4,0<<4,0<<4,2<<4,2<<4,2<<4
+230   8F60 20 20       >
+231   8F62                                      MAP_ROW Tileset_11, 1,1,1,0,0,2,0,0,1,1,1,0
+231   8F62 72 98 00 00 >			DW Tileset_11, 0x0000
+231   8F66 00 10 10 10 >			DB 0<<4,1<<4,1<<4,1<<4,0<<4,0<<4
+231   8F6A 00 00       >
+231   8F6C 20 00 00 10 >			DB 2<<4,0<<4,0<<4,1<<4,1<<4,1<<4
+231   8F70 10 10       >
+232   8F72                                      MAP_ROW Tileset_11, 1,1,1,0,0,2,0,0,1,1,1,3
+232   8F72 72 98 00 00 >			DW Tileset_11, 0x0000
+232   8F76 30 10 10 10 >			DB 3<<4,1<<4,1<<4,1<<4,0<<4,0<<4
+232   8F7A 00 00       >
+232   8F7C 20 00 00 10 >			DB 2<<4,0<<4,0<<4,1<<4,1<<4,1<<4
+232   8F80 10 10       >
+233   8F82                                      MAP_ROW Tileset_11, 1,1,1,0,0,2,0,0,1,1,1,3
+233   8F82 72 98 00 00 >			DW Tileset_11, 0x0000
+233   8F86 30 10 10 10 >			DB 3<<4,1<<4,1<<4,1<<4,0<<4,0<<4
+233   8F8A 00 00       >
+233   8F8C 20 00 00 10 >			DB 2<<4,0<<4,0<<4,1<<4,1<<4,1<<4
+233   8F90 10 10       >
+234   8F92                                      MAP_ROW Tileset_11, 1,1,1,0,0,2,0,0,1,1,1,3
+234   8F92 72 98 00 00 >			DW Tileset_11, 0x0000
+234   8F96 30 10 10 10 >			DB 3<<4,1<<4,1<<4,1<<4,0<<4,0<<4
+234   8F9A 00 00       >
+234   8F9C 20 00 00 10 >			DB 2<<4,0<<4,0<<4,1<<4,1<<4,1<<4
+234   8FA0 10 10       >
+235   8FA2                                      MAP_ROW Tileset_11, 1,1,1,0,0,2,0,0,1,1,1,3
+235   8FA2 72 98 00 00 >			DW Tileset_11, 0x0000
+235   8FA6 30 10 10 10 >			DB 3<<4,1<<4,1<<4,1<<4,0<<4,0<<4
+235   8FAA 00 00       >
+235   8FAC 20 00 00 10 >			DB 2<<4,0<<4,0<<4,1<<4,1<<4,1<<4
+235   8FB0 10 10       >
+236   8FB2                                      MAP_ROW Tileset_11, 1,1,1,0,0,2,0,0,1,1,1,3
+236   8FB2 72 98 00 00 >			DW Tileset_11, 0x0000
+236   8FB6 30 10 10 10 >			DB 3<<4,1<<4,1<<4,1<<4,0<<4,0<<4
+236   8FBA 00 00       >
+236   8FBC 20 00 00 10 >			DB 2<<4,0<<4,0<<4,1<<4,1<<4,1<<4
+236   8FC0 10 10       >
+237   8FC2                                      MAP_ROW Tileset_11, 1,1,1,0,0,2,0,0,1,1,1,3
+237   8FC2 72 98 00 00 >			DW Tileset_11, 0x0000
+237   8FC6 30 10 10 10 >			DB 3<<4,1<<4,1<<4,1<<4,0<<4,0<<4
+237   8FCA 00 00       >
+237   8FCC 20 00 00 10 >			DB 2<<4,0<<4,0<<4,1<<4,1<<4,1<<4
+237   8FD0 10 10       >
+238   8FD2                                      MAP_ROW Tileset_11, 1,1,1,0,0,2,0,0,1,1,1,3
+238   8FD2 72 98 00 00 >			DW Tileset_11, 0x0000
+238   8FD6 30 10 10 10 >			DB 3<<4,1<<4,1<<4,1<<4,0<<4,0<<4
+238   8FDA 00 00       >
+238   8FDC 20 00 00 10 >			DB 2<<4,0<<4,0<<4,1<<4,1<<4,1<<4
+238   8FE0 10 10       >
+239   8FE2                                      MAP_ROW Tileset_11, 1,1,1,0,0,2,0,0,1,1,1,3
+239   8FE2 72 98 00 00 >			DW Tileset_11, 0x0000
+239   8FE6 30 10 10 10 >			DB 3<<4,1<<4,1<<4,1<<4,0<<4,0<<4
+239   8FEA 00 00       >
+239   8FEC 20 00 00 10 >			DB 2<<4,0<<4,0<<4,1<<4,1<<4,1<<4
+239   8FF0 10 10       >
+240   8FF2                                      MAP_ROW Tileset_11, 1,1,1,0,0,2,0,0,1,1,1,3
+240   8FF2 72 98 00 00 >			DW Tileset_11, 0x0000
+240   8FF6 30 10 10 10 >			DB 3<<4,1<<4,1<<4,1<<4,0<<4,0<<4
+240   8FFA 00 00       >
+240   8FFC 20 00 00 10 >			DB 2<<4,0<<4,0<<4,1<<4,1<<4,1<<4
+240   9000 10 10       >
+241   9002
+242   9002              Demo_Map_Length:	EQU ($ - Demo_Map + 1) / 16
+243   9002
+244   9002 00 00 70 FF  Tileset_01:             DG ---------------- -111----11111111 -11-----1111111- 11111---11-11111 11-11111-1111111 -1-------------1
+244   9006 60 FE F8 DF
+244   900A DF 7F 40 01
+245   900E 00 00 7F FF                          DG ---------------- -111111111111111 111111111111111- -1111-1111--1111 -1111111111-111- ---------------1
+245   9012 FF FE 7B CF
+245   9016 7F EE 00 01
+246   901A 00 10 5F FF                          DG -----------1---- -1-1111111111111 111111111111111- --11--11111-1111 -1111-111-1111-- ---1-----------1
+246   901E FF FE 33 EF
+246   9022 7B BC 10 01
+247   9026 20 00 F7 FF                          DG --1------------- 1111-11111111111 111111111111111- 11---1111111---- -1-1111-111-1--- 1--------------1
+247   902A FF FE C7 F0
+247   902E 5E E8 80 01
+248   9032 00 00 7F FF                          DG ---------------- -111111111111111 1111111111111-1- 1111--1111111--1 111111111111--1- ----1---------1-
+248   9036 FF FA F3 F9
+248   903A FF F2 08 02
+249   903E 02 00 7D FF                          DG ------1--------- -11111-111111111 1111111111----11 11111--11-----11 -1-11-11-111-1-- -1----1-------1-
+249   9042 FF C3 F9 83
+249   9046 5B 74 42 02
+250   904A 00 00 EF FF                          DG ---------------- 111-111111111111 111111111------1 -111111--111-111 11111111111----- ---------------1
+250   904E FF 81 7E 77
+250   9052 FF E0 00 01
+251   9056 02 00 FF 7F                          DG ------1--------- 11111111-1111111 11111111-------1 ---1----1111-111 11-111-111-----1 ---1---1-------1
+251   905A FF 01 10 F7
+251   905E DD C1 11 01
+252   9062 00 04 7B DF                          DG -------------1-- -1111-1111-11111 11111111------1- 111--11-1111-111 1111111111--1--- ---------------1
+252   9066 FF 02 E6 F7
+252   906A FF C8 00 01
+253   906E 20 00 6F FF                          DG --1------------- -11-111111111111 11111111------1- 111-111-1111-111 1111-1111-1---1- -1---1---1----11
+253   9072 FF 02 EE F7
+253   9076 F7 A2 44 43
+254   907A 01 00 77 7F                          DG -------1-------- -111-111-1111111 1111111-------1- 11-1111--11--111 -1111111-------- ---1----------1-
+254   907E FE 02 DE 67
+254   9082 7F 00 10 02
+255   9086 00 00 7F EF                          DG ---------------- -1111111111-1111 111111---------1 11-11111-1-----1 -1-1111----1---1 -------1-1-1--1-
+255   908A FC 01 DF 41
+255   908E 5E 11 01 52
+256   9092 00 00 FE BB                          DG ---------------- 1111111-1-111-11 11111----------1 11-111111-1111-- -11111--1----1-- --1--1------1-11
+256   9096 F8 01 DF BC
+256   909A 7C 84 24 0B
+257   909E 00 10 ED FF                          DG -----------1---- 111-11-111111111 111-----------1- 1---1111-1111111 -1111-----1----- --------1---1111
+257   90A2 E0 02 8F 7F
+257   90A6 78 20 00 8F
+258   90AA 04 00 7F FE                          DG -----1---------- -11111111111111- 11------------1- 1-1--111-1111111 111--111-----111 1--11-----11111-
+258   90AE C0 02 A7 7F
+258   90B2 E7 07 98 3E
+259   90B6 00 00 FB B7                          DG ---------------- 11111-111-11-111 1-------------11 --11--11--111111 -11111-1111111-- -11-111111--111-
+259   90BA 80 03 33 3F
+259   90BE 7D FC 6F CE
+260   90C2
+261   90C2 06 06 06 06  			DW 0x0606,          0x0606,          0x0606,          0x0606,          0x0606,          0x0606
+261   90C6 06 06 06 06
+261   90CA 06 06 06 06
+262   90CE 06 06 06 06  			DW 0x0606,          0x0606,          0x0606,          0x0606,          0x0606,          0x0606
+262   90D2 06 06 06 06
+262   90D6 06 06 06 06
+263   90DA
+264   90DA 00 00 00 00  Tileset_02:             DG ---------------- ---------------- ---------------- 11111---11-11111 11-11111-1111111 -1-------------1
+264   90DE 00 00 F8 DF
+264   90E2 DF 7F 40 01
+265   90E6 00 00 00 00                          DG ---------------- ---------------- ---------------- -1111-1111--1111 -1111111111-111- ---------------1
+265   90EA 00 00 7B CF
+265   90EE 7F EE 00 01
+266   90F2 00 10 00 00                          DG -----------1---- ---------------- -----1------1--- --11--11111-1111 -1111-111-1111-- ---1-----------1
+266   90F6 04 08 33 EF
+266   90FA 7B BC 10 01
+267   90FE 20 00 21 01                          DG --1------------- --1----1-------1 1--------------- 11---1111111---- -1-1111-111-1--- 1--------------1
+267   9102 80 00 C7 F0
+267   9106 5E E8 80 01
+268   910A 00 00 00 01                          DG ---------------- ---------------1 11-------------- 1111--1111111--1 111111111111--1- ----1---------1-
+268   910E C0 00 F3 F9
+268   9112 FF F2 08 02
+269   9116 02 00 00 13                          DG ------1--------- -----------1--11 111---1----1---- 11111--11-----11 -1-11-11-111-1-- -1----1-------1-
+269   911A E2 10 F9 83
+269   911E 5B 74 42 02
+270   9122 00 00 00 03                          DG ---------------- --------------11 111------111---- -111111--111-111 11111111111----- ---------------1
+270   9126 E0 70 7E 77
+270   912A FF E0 00 01
+271   912E 02 00 03 83                          DG ------1--------- ------111-----11 1111---1111----- ---1----1111-111 11-111-111-----1 ---1---1-------1
+271   9132 F1 E0 10 F7
+271   9136 DD C1 11 01
+272   913A 00 04 13 E1                          DG -------------1-- ---1--11111----1 1111--1111------ 111--11-1111-111 1111111111--1--- ---------------1
+272   913E F3 C0 E6 F7
+272   9142 FF C8 00 01
+273   9146 20 00 01 F1                          DG --1------------- -------11111---1 1111-1111------- 111-111-1111-111 1111-1111-1---1- -1---1---1----11
+273   914A F7 80 EE F7
+273   914E F7 A2 44 43
+274   9152 01 00 00 F9                          DG -------1-------- --------11111--1 1111-1111---1--- 11-1111--11--111 -1111111-------- ---1----------1-
+274   9156 F7 88 DE 67
+274   915A 7F 00 10 02
+275   915E 00 00 00 7F                          DG ---------------- ---------1111111 111111-1-------- 11-11111-1-----1 -1-1111----1---1 -------1-1-1--1-
+275   9162 FD 00 DF 41
+275   9166 5E 11 01 52
+276   916A 00 00 22 3F                          DG ---------------- --1---1---111111 11111111-------- 11-111111-1111-- -11111--1----1-- --1--1------1-11
+276   916E FF 00 DF BC
+276   9172 7C 84 24 0B
+277   9176 00 10 00 0F                          DG -----------1---- ------------1111 111111111111---- 1---1111-1111111 -1111-----1----- --------1---1111
+277   917A FF F0 8F 7F
+277   917E 78 20 00 8F
+278   9182 04 00 00 0F                          DG -----1---------- ------------1111 1111-111111111-- 1-1--111-1111111 111--111-----111 1--11-----11111-
+278   9186 F7 FC A7 7F
+278   918A E7 07 98 3E
+279   918E 00 00 03 EF                          DG ---------------- ------11111-1111 1-111111-11111-- --11--11--111111 -11111-1111111-- -11-111111--111-
+279   9192 BF 7C 33 3F
+279   9196 7D FC 6F CE
+280   919A
+281   919A 06 06 04 04  			DW 0x0606,          0x0404,          0x0404,          0x0606,          0x0606,          0x0606
+281   919E 04 04 06 06
+281   91A2 06 06 06 06
+282   91A6 06 06 04 04  			DW 0x0606,          0x0404,          0x0404,          0x0606,          0x0606,          0x0606
+282   91AA 04 04 06 06
+282   91AE 06 06 06 06
+283   91B2
+284   91B2 00 00 70 FF  Tileset_03:             DG ---------------- -111----11111111 ---------------- ---------------- ----1111111111-1 111-1----11-----
+284   91B6 00 00 00 00
+284   91BA 0F FD E8 60
+285   91BE 00 00 7F FF                          DG ---------------- -111111111111111 ---------------- ---------------- ----111111111111 -1111-----------
+285   91C2 00 00 00 00
+285   91C6 0F FF 78 00
+286   91CA 00 10 5F FF                          DG -----------1---- -1-1111111111111 ---------------- -----1------1--- --------11111111 1-11111---------
+286   91CE 00 00 04 08
+286   91D2 00 FF BE 00
+287   91D6 20 00 F7 FF                          DG --1------------- 1111-11111111111 --1----1-------1 1--------------- ----------11111- 11111111--------
+287   91DA 21 01 80 00
+287   91DE 00 3E FF 00
+288   91E2 00 00 7F FF                          DG ---------------- -111111111111111 ---------------1 11-------------- --------111111-- 111-11-11-------
+288   91E6 00 01 C0 00
+288   91EA 00 FC ED 80
+289   91EE 02 00 7D FF                          DG ------1--------- -11111-111111111 -----------1--11 111---1----1---- ---1---1111-1--- 111---1111------
+289   91F2 00 13 E2 10
+289   91F6 11 E8 E3 C0
+290   91FA 00 00 EF FF                          DG ---------------- 111-111111111111 --------------11 111------111---- ------111111---- 1111---1111-----
+290   91FE 00 03 E0 70
+290   9202 03 F0 F1 E0
+291   9206 02 00 FF 7F                          DG ------1--------- 11111111-1111111 ------111-----11 1111---1111----- ------11-11----- -1-1------11----
+291   920A 03 83 F1 E0
+291   920E 03 60 50 30
+292   9212 00 04 7B DF                          DG -------------1-- -1111-1111-11111 ---1--11111----1 1111--1111------ --1--11111------ -111-------1----
+292   9216 13 E1 F3 C0
+292   921A 27 C0 70 10
+293   921E 20 00 6F FF                          DG --1------------- -11-111111111111 -------11111---1 1111-1111------- -----11--------- -111------------
+293   9222 01 F1 F7 80
+293   9226 06 00 70 00
+294   922A 01 00 77 7F                          DG -------1-------- -111-111-1111111 --------11111--1 1111-1111---1--- ----1----------- --11------------
+294   922E 00 F9 F7 88
+294   9232 08 00 30 00
+295   9236 00 00 7F EF                          DG ---------------- -1111111111-1111 ---------1111111 111111-1-------- ---------------- ---1------------
+295   923A 00 7F FD 00
+295   923E 00 00 10 00
+296   9242 00 00 FE BB                          DG ---------------- 1111111-1-111-11 --1---1---111111 11111111-------- ---------------- ----------------
+296   9246 22 3F FF 00
+296   924A 00 00 00 00
+297   924E 00 10 ED FF                          DG -----------1---- 111-11-111111111 ------------1111 111111111111---- ----1--------1-- ---------1------
+297   9252 00 0F FF F0
+297   9256 08 04 00 40
+298   925A 04 00 7F FE                          DG -----1---------- -11111111111111- ------------1111 1111-111111111-- ---------1------ ----------------
+298   925E 00 0F F7 FC
+298   9262 00 40 00 00
+299   9266 00 00 FB B7                          DG ---------------- 11111-111-11-111 ------11111-1111 1-111111-11111-- ---------------- ----------------
+299   926A 03 EF BF 7C
+299   926E 00 00 00 00
+300   9272
+301   9272 06 06 06 06  			DW 0x0606,          0x0606,          0x0404,          0x0404,          0x0404,          0x0404
+301   9276 04 04 04 04
+301   927A 04 04 04 04
+302   927E 06 06 06 06  			DW 0x0606,          0x0606,          0x0404,          0x0404,          0x0404,          0x0404
+302   9282 04 04 04 04
+302   9286 04 04 04 04
+303   928A
+304   928A 00 00 00 00  Tileset_04:             DG ---------------- ---------------- ---------------- 11-11111-1111111 ----1111111111-1 111-1----11-----
+304   928E 00 00 DF 7F
+304   9292 0F FD E8 60
+305   9296 00 00 00 00                          DG ---------------- ---------------- ---------------- -1111111111-111- ----111111111111 -1111-----------
+305   929A 00 00 7F EE
+305   929E 0F FF 78 00
+306   92A2 00 10 00 00                          DG -----------1---- ---------------- -----1------1--- -1111-111-1111-- --------11111111 1-11111---------
+306   92A6 04 08 7B BC
+306   92AA 00 FF BE 00
+307   92AE 20 00 21 01                          DG --1------------- --1----1-------1 1--------------- -1-1111-111-1--- ----------11111- 11111111--------
+307   92B2 80 00 5E E8
+307   92B6 00 3E FF 00
+308   92BA 00 00 00 01                          DG ---------------- ---------------1 11-------------- 111111111111--1- --------111111-- 111-11-11-------
+308   92BE C0 00 FF F2
+308   92C2 00 FC ED 80
+309   92C6 02 00 00 13                          DG ------1--------- -----------1--11 111---1----1---- -1-11-11-111-1-- ---1---1111-1--- 111---1111------
+309   92CA E2 10 5B 74
+309   92CE 11 E8 E3 C0
+310   92D2 00 00 00 03                          DG ---------------- --------------11 111------111---- 11111111111----- ------111111---- 1111---1111-----
+310   92D6 E0 70 FF E0
+310   92DA 03 F0 F1 E0
+311   92DE 02 00 03 83                          DG ------1--------- ------111-----11 1111---1111----- 11-111-111-----1 ------11-11----- -1-1------11----
+311   92E2 F1 E0 DD C1
+311   92E6 03 60 50 30
+312   92EA 00 04 13 E1                          DG -------------1-- ---1--11111----1 1111--1111------ 1111111111--1--- --1--11111------ -111-------1----
+312   92EE F3 C0 FF C8
+312   92F2 27 C0 70 10
+313   92F6 20 00 01 F1                          DG --1------------- -------11111---1 1111-1111------- 1111-1111-1---1- -----11--------- -111------------
+313   92FA F7 80 F7 A2
+313   92FE 06 00 70 00
+314   9302 01 00 00 F9                          DG -------1-------- --------11111--1 1111-1111---1--- -1111111-------- ----1----------- --11------------
+314   9306 F7 88 7F 00
+314   930A 08 00 30 00
+315   930E 00 00 00 7F                          DG ---------------- ---------1111111 111111-1-------- -1-1111----1---1 ---------------- ---1------------
+315   9312 FD 00 5E 11
+315   9316 00 00 10 00
+316   931A 00 00 22 3F                          DG ---------------- --1---1---111111 11111111-------- -11111--1----1-- ---------------- ----------------
+316   931E FF 00 7C 84
+316   9322 00 00 00 00
+317   9326 00 10 00 0F                          DG -----------1---- ------------1111 111111111111---- -1111-----1----- ----1--------1-- ---------1------
+317   932A FF F0 78 20
+317   932E 08 04 00 40
+318   9332 04 00 00 0F                          DG -----1---------- ------------1111 1111-111111111-- 111--111-----111 ---------1------ ----------------
+318   9336 F7 FC E7 07
+318   933A 00 40 00 00
+319   933E 00 00 03 EF                          DG ---------------- ------11111-1111 1-111111-11111-- -11111-1111111-- ---------------- ----------------
+319   9342 BF 7C 7D FC
+319   9346 00 00 00 00
+320   934A
+321   934A 06 06 04 04  			DW 0x0606,          0x0404,          0x0404,          0x0606,          0x0404,          0x0404
+321   934E 04 04 06 06
+321   9352 04 04 04 04
+322   9356 06 06 04 04  			DW 0x0606,          0x0404,          0x0404,          0x0606,          0x0404,          0x0404
+322   935A 04 04 06 06
+322   935E 04 04 04 04
+323   9362
+324   9362 00 00 00 00  Tileset_05:             DG ---------------- ---------------- -1111111-1111111 ---------------- ----1111111111-1 111-1----11-----
+324   9366 7F 7F 00 00
+324   936A 0F FD E8 60
+325   936E 00 00 00 00                          DG ---------------- ---------------- -1111111-111111- ---------------- ----111111111111 -1111-----------
+325   9372 7F 7E 00 00
+325   9376 0F FF 78 00
+326   937A 00 00 04 08                          DG ---------------- -----1------1--- -1111111-1111111 ---------------- --------11111111 1-11111---------
+326   937E 7F 7F 00 00
+326   9382 00 FF BE 00
+327   9386 21 01 80 00                          DG --1----1-------1 1--------------- ---------------- ---------------- ----------11111- 11111111--------
+327   938A 00 00 00 00
+327   938E 00 3E FF 00
+328   9392 00 01 C0 00                          DG ---------------1 11-------------- 1111-11111111-11 ---------------- --------111111-- 111-11-11-------
+328   9396 F7 FB 00 00
+328   939A 00 FC ED 80
+329   939E 00 13 E2 10                          DG -----------1--11 111---1----1---- 1111-11111111-11 ---------------- ---1---1111-1--- 111---1111------
+329   93A2 F7 FB 00 00
+329   93A6 11 E8 E3 C0
+330   93AA 00 03 E0 70                          DG --------------11 111------111---- 1111-11111111-11 ---------------- ------111111---- 1111---1111-----
+330   93AE F7 FB 00 00
+330   93B2 03 F0 F1 E0
+331   93B6 03 83 F1 E0                          DG ------111-----11 1111---1111----- ---------------- ----111111------ ------11-11----- -1-1------11----
+331   93BA 00 00 0F C0
+331   93BE 03 60 50 30
+332   93C2 13 E1 F3 C0                          DG ---1--11111----1 1111--1111------ -1111111-1111111 ----111111------ --1--11111------ -111-------1----
+332   93C6 7F 7F 0F C0
+332   93CA 27 C0 70 10
+333   93CE 01 F1 F7 80                          DG -------11111---1 1111-1111------- -1111111-1111111 ---------------- -----11--------- -111------------
+333   93D2 7F 7F 00 00
+333   93D6 06 00 70 00
+334   93DA 00 F9 F7 88                          DG --------11111--1 1111-1111---1--- -1111111-1111111 ---------------- ----1----------- --11------------
+334   93DE 7F 7F 00 00
+334   93E2 08 00 30 00
+335   93E6 00 7F FD 00                          DG ---------1111111 111111-1-------- ---------------- ---------------- ---------------- ---1------------
+335   93EA 00 00 00 00
+335   93EE 00 00 10 00
+336   93F2 22 3F FF 00                          DG --1---1---111111 11111111-------- 1111-11111111-11 ---------------- ---------------- ----------------
+336   93F6 F7 FB 00 00
+336   93FA 00 00 00 00
+337   93FE 00 0F FF F0                          DG ------------1111 111111111111---- 1111-11111111-11 ---------------- ----1--------1-- ---------1------
+337   9402 F7 FB 00 00
+337   9406 08 04 00 40
+338   940A 00 0F F7 FC                          DG ------------1111 1111-111111111-- 1111-11111111-11 ---------------- ---------1------ ----------------
+338   940E F7 FB 00 00
+338   9412 00 40 00 00
+339   9416 03 EF BF 7C                          DG ------11111-1111 1-111111-11111-- ---------------- ---------------- ---------------- ----------------
+339   941A 00 00 00 00
+339   941E 00 00 00 00
+340   9422
+341   9422 04 04 04 04  			DW 0x0404,          0x0404,          0x0606,          0x0707,          0x0404,          0x0404
+341   9426 06 06 07 07
+341   942A 04 04 04 04
+342   942E 04 04 04 04  			DW 0x0404,          0x0404,          0x0606,          0x0707,          0x0404,          0x0404
+342   9432 06 06 07 07
+342   9436 04 04 04 04
+343   943A
+344   943A 00 00 00 00  Tileset_06:             DG ---------------- ---------------- ---------------- ---------------- ----1111111111-1 111-1----11-----
+344   943E 00 00 00 00
+344   9442 0F FD E8 60
+345   9446 00 00 00 00                          DG ---------------- ---------------- ---------------- ---------------- ----111111111111 -1111-----------
+345   944A 00 00 00 00
+345   944E 0F FF 78 00
+346   9452 00 00 00 10                          DG ---------------- -----------1---- ---------------- -----1------1--- --------11111111 1-11111---------
+346   9456 00 00 04 08
+346   945A 00 FF BE 00
+347   945E 00 00 20 00                          DG ---------------- --1------------- --1----1-------1 1--------------- ----------11111- 11111111--------
+347   9462 21 01 80 00
+347   9466 00 3E FF 00
+348   946A 00 00 00 00                          DG ---------------- ---------------- ---------------1 11-------------- --------111111-- 111-11-11-------
+348   946E 00 01 C0 00
+348   9472 00 FC ED 80
+349   9476 00 00 02 00                          DG ---------------- ------1--------- -----------1--11 111---1----1---- ---1---1111-1--- 111---1111------
+349   947A 00 13 E2 10
+349   947E 11 E8 E3 C0
+350   9482 00 00 00 00                          DG ---------------- ---------------- --------------11 111------111---- ------111111---- 1111---1111-----
+350   9486 00 03 E0 70
+350   948A 03 F0 F1 E0
+351   948E 00 00 02 00                          DG ---------------- ------1--------- ------111-----11 1111---1111----- ------11-11----- -1-1------11----
+351   9492 03 83 F1 E0
+351   9496 03 60 50 30
+352   949A 00 00 00 04                          DG ---------------- -------------1-- ---1--11111----1 1111--1111------ --1--11111------ -111-------1----
+352   949E 13 E1 F3 C0
+352   94A2 27 C0 70 10
+353   94A6 00 00 20 00                          DG ---------------- --1------------- -------11111---1 1111-1111------- -----11--------- -111------------
+353   94AA 01 F1 F7 80
+353   94AE 06 00 70 00
+354   94B2 00 00 01 00                          DG ---------------- -------1-------- --------11111--1 1111-1111---1--- ----1----------- --11------------
+354   94B6 00 F9 F7 88
+354   94BA 08 00 30 00
+355   94BE 00 00 00 00                          DG ---------------- ---------------- ---------1111111 111111-1-------- ---------------- ---1------------
+355   94C2 00 7F FD 00
+355   94C6 00 00 10 00
+356   94CA 00 00 00 00                          DG ---------------- ---------------- --1---1---111111 11111111-------- ---------------- ----------------
+356   94CE 22 3F FF 00
+356   94D2 00 00 00 00
+357   94D6 00 00 00 10                          DG ---------------- -----------1---- ------------1111 111111111111---- ----1--------1-- ---------1------
+357   94DA 00 0F FF F0
+357   94DE 08 04 00 40
+358   94E2 00 00 04 00                          DG ---------------- -----1---------- ------------1111 1111-111111111-- ---------1------ ----------------
+358   94E6 00 0F F7 FC
+358   94EA 00 40 00 00
+359   94EE 00 00 00 00                          DG ---------------- ---------------- ------11111-1111 1-111111-11111-- ---------------- ----------------
+359   94F2 03 EF BF 7C
+359   94F6 00 00 00 00
+360   94FA
+361   94FA 07 07 06 06  			DW 0x0707,          0x0606,          0x0404,          0x0404,          0x0404,          0x0404
+361   94FE 04 04 04 04
+361   9502 04 04 04 04
+362   9506 07 07 06 06  			DW 0x0707,          0x0606,          0x0404,          0x0404,          0x0404,          0x0404
+362   950A 04 04 04 04
+362   950E 04 04 04 04
+363   9512
+364   9512 00 00 00 00  Tileset_07:             DG ---------------- ---------------- ---------------- 11111---11-11111 ----1111111111-1 111-1----11-----
+364   9516 00 00 F8 DF
+364   951A 0F FD E8 60
+365   951E 00 00 00 00                          DG ---------------- ---------------- ---------------- -1111-1111--1111 ----111111111111 -1111-----------
+365   9522 00 00 7B CF
+365   9526 0F FF 78 00
+366   952A 00 00 00 10                          DG ---------------- -----------1---- ---------------- --11--11111-1111 --------11111111 1-11111---------
+366   952E 00 00 33 EF
+366   9532 00 FF BE 00
+367   9536 00 00 20 00                          DG ---------------- --1------------- --1----1-------1 11---1111111---- ----------11111- 11111111--------
+367   953A 21 01 C7 F0
+367   953E 00 3E FF 00
+368   9542 00 00 00 00                          DG ---------------- ---------------- ---------------1 1111--1111111--1 --------111111-- 111-11-11-------
+368   9546 00 01 F3 F9
+368   954A 00 FC ED 80
+369   954E 00 00 02 00                          DG ---------------- ------1--------- -----------1--11 11111--11-----11 ---1---1111-1--- 111---1111------
+369   9552 00 13 F9 83
+369   9556 11 E8 E3 C0
+370   955A 00 00 00 00                          DG ---------------- ---------------- --------------11 -111111--111-111 ------111111---- 1111---1111-----
+370   955E 00 03 7E 77
+370   9562 03 F0 F1 E0
+371   9566 00 00 02 00                          DG ---------------- ------1--------- ------111-----11 ---1----1111-111 ------11-11----- -1-1------11----
+371   956A 03 83 10 F7
+371   956E 03 60 50 30
+372   9572 00 00 00 04                          DG ---------------- -------------1-- ---1--11111----1 111--11-1111-111 --1--11111------ -111-------1----
+372   9576 13 E1 E6 F7
+372   957A 27 C0 70 10
+373   957E 00 00 20 00                          DG ---------------- --1------------- -------11111---1 111-111-1111-111 -----11--------- -111------------
+373   9582 01 F1 EE F7
+373   9586 06 00 70 00
+374   958A 00 00 01 00                          DG ---------------- -------1-------- --------11111--1 11-1111--11--111 ----1----------- --11------------
+374   958E 00 F9 DE 67
+374   9592 08 00 30 00
+375   9596 00 00 00 00                          DG ---------------- ---------------- ---------1111111 11-11111-1-----1 ---------------- ---1------------
+375   959A 00 7F DF 41
+375   959E 00 00 10 00
+376   95A2 00 00 00 00                          DG ---------------- ---------------- --1---1---111111 11-111111-1111-- ---------------- ----------------
+376   95A6 22 3F DF BC
+376   95AA 00 00 00 00
+377   95AE 00 00 00 10                          DG ---------------- -----------1---- ------------1111 1---1111-1111111 ----1--------1-- ---------1------
+377   95B2 00 0F 8F 7F
+377   95B6 08 04 00 40
+378   95BA 00 00 04 00                          DG ---------------- -----1---------- ------------1111 1-1--111-1111111 ---------1------ ----------------
+378   95BE 00 0F A7 7F
+378   95C2 00 40 00 00
+379   95C6 00 00 00 00                          DG ---------------- ---------------- ------11111-1111 --11--11--111111 ---------------- ----------------
+379   95CA 03 EF 33 3F
+379   95CE 00 00 00 00
+380   95D2
+381   95D2 07 07 06 06  			DW 0x0707,          0x0606,          0x0404,          0x0606,          0x0404,          0x0404
+381   95D6 04 04 06 06
+381   95DA 04 04 04 04
+382   95DE 07 07 06 06  			DW 0x0707,          0x0606,          0x0404,          0x0606,          0x0404,          0x0404
+382   95E2 04 04 06 06
+382   95E6 04 04 04 04
+383   95EA
+384   95EA 00 00 00 00  Tileset_08:             DG ---------------- ---------------- -111----11111111 -11-----1111111- -1111111-1111111 11111---11-11111
+384   95EE 70 FF 60 FE
+384   95F2 7F 7F F8 DF
+385   95F6 00 00 00 00                          DG ---------------- ---------------- -111111111111111 111111111111111- -1111111-111111- -1111-1111--1111
+385   95FA 7F FF FF FE
+385   95FE 7F 7E 7B CF
+386   9602 00 00 00 10                          DG ---------------- -----------1---- -1-1111111111111 111111111111111- -1111111-1111111 --11--11111-1111
+386   9606 5F FF FF FE
+386   960A 7F 7F 33 EF
+387   960E 00 00 20 00                          DG ---------------- --1------------- 1111-11111111111 111111111111111- ---------------- 11---1111111----
+387   9612 F7 FF FF FE
+387   9616 00 00 C7 F0
+388   961A 00 00 00 00                          DG ---------------- ---------------- -111111111111111 1111111111111-1- 1111-11111111-11 1111--1111111--1
+388   961E 7F FF FF FA
+388   9622 F7 FB F3 F9
+389   9626 00 00 02 00                          DG ---------------- ------1--------- -11111-111111111 1111111111----11 1111-11111111-11 11111--11-----11
+389   962A 7D FF FF C3
+389   962E F7 FB F9 83
+390   9632 00 00 00 00                          DG ---------------- ---------------- 111-111111111111 111111111------1 1111-11111111-11 -111111--111-111
+390   9636 EF FF FF 81
+390   963A F7 FB 7E 77
+391   963E 00 00 02 00                          DG ---------------- ------1--------- 11111111-1111111 11111111-------1 ---------------- ---1----1111-111
+391   9642 FF 7F FF 01
+391   9646 00 00 10 F7
+392   964A 00 00 00 04                          DG ---------------- -------------1-- -1111-1111-11111 11111111------1- -1111111-1111111 111--11-1111-111
+392   964E 7B DF FF 02
+392   9652 7F 7F E6 F7
+393   9656 00 00 20 00                          DG ---------------- --1------------- -11-111111111111 11111111------1- -1111111-1111111 111-111-1111-111
+393   965A 6F FF FF 02
+393   965E 7F 7F EE F7
+394   9662 00 00 01 00                          DG ---------------- -------1-------- -111-111-1111111 1111111-------1- -1111111-1111111 11-1111--11--111
+394   9666 77 7F FE 02
+394   966A 7F 7F DE 67
+395   966E 00 00 00 00                          DG ---------------- ---------------- -1111111111-1111 111111---------1 ---------------- 11-11111-1-----1
+395   9672 7F EF FC 01
+395   9676 00 00 DF 41
+396   967A 00 00 00 00                          DG ---------------- ---------------- 1111111-1-111-11 11111----------1 1111-11111111-11 11-111111-1111--
+396   967E FE BB F8 01
+396   9682 F7 FB DF BC
+397   9686 00 00 00 10                          DG ---------------- -----------1---- 111-11-111111111 111-----------1- 1111-11111111-11 1---1111-1111111
+397   968A ED FF E0 02
+397   968E F7 FB 8F 7F
+398   9692 00 00 04 00                          DG ---------------- -----1---------- -11111111111111- 11------------1- 1111-11111111-11 1-1--111-1111111
+398   9696 7F FE C0 02
+398   969A F7 FB A7 7F
+399   969E 00 00 00 00                          DG ---------------- ---------------- 11111-111-11-111 1-------------11 ---------------- --11--11--111111
+399   96A2 FB B7 80 03
+399   96A6 00 00 33 3F
+400   96AA
+401   96AA 07 07 06 06  			DW 0x0707,          0x0606,          0x0606,          0x0606,          0x0606,          0x0606
+401   96AE 06 06 06 06
+401   96B2 06 06 06 06
+402   96B6 07 07 06 06  			DW 0x0707,          0x0606,          0x0606,          0x0606,          0x0606,          0x0606
+402   96BA 06 06 06 06
+402   96BE 06 06 06 06
+403   96C2
+404   96C2 00 00 00 00  Tileset_09:             DG ---------------- ---------------- 11-11111-1111111 -1-------------1 11--11--11--11-- ----------------
+404   96C6 DF 7F 40 01
+404   96CA CC CC 00 00
+405   96CE 00 00 00 00                          DG ---------------- ---------------- -1111111111-111- ---------------1 ---------------- ----------------
+405   96D2 7F EE 00 01
+405   96D6 00 00 00 00
+406   96DA 00 00 00 10                          DG ---------------- -----------1---- -1111-111-1111-- ---1-----------1 --11--11--11---- ----------------
+406   96DE 7B BC 10 01
+406   96E2 33 30 00 00
+407   96E6 00 00 20 00                          DG ---------------- --1------------- -1-1111-111-1--- 1--------------1 ---------------- ----------------
+407   96EA 5E E8 80 01
+407   96EE 00 00 00 00
+408   96F2 00 00 00 00                          DG ---------------- ---------------- 111111111111--1- ----1---------1- 11--11--11--11-- ----------------
+408   96F6 FF F2 08 02
+408   96FA CC CC 00 00
+409   96FE 00 00 02 00                          DG ---------------- ------1--------- -1-11-11-111-1-- -1----1-------1- ---------------- ----------------
+409   9702 5B 74 42 02
+409   9706 00 00 00 00
+410   970A 00 00 00 00                          DG ---------------- ---------------- 11111111111----- ---------------1 --11--11--11---- ----------------
+410   970E FF E0 00 01
+410   9712 33 30 00 00
+411   9716 00 00 02 00                          DG ---------------- ------1--------- 11-111-111-----1 ---1---1-------1 ---------------- ----------------
+411   971A DD C1 11 01
+411   971E 00 00 00 00
+412   9722 00 00 00 04                          DG ---------------- -------------1-- 1111111111--1--- ---------------1 11--11--11--11-- ----------------
+412   9726 FF C8 00 01
+412   972A CC CC 00 00
+413   972E 00 00 20 00                          DG ---------------- --1------------- 1111-1111-1---1- -1---1---1----11 ---------------- ----------------
+413   9732 F7 A2 44 43
+413   9736 00 00 00 00
+414   973A 00 00 01 00                          DG ---------------- -------1-------- -1111111-------- ---1----------1- --11--11--11---- ----------------
+414   973E 7F 00 10 02
+414   9742 33 30 00 00
+415   9746 00 00 00 00                          DG ---------------- ---------------- -1-1111----1---1 -------1-1-1--1- ---------------- ----------------
+415   974A 5E 11 01 52
+415   974E 00 00 00 00
+416   9752 00 00 00 00                          DG ---------------- ---------------- -11111--1----1-- --1--1------1-11 11--11--11--11-- ----------------
+416   9756 7C 84 24 0B
+416   975A CC CC 00 00
+417   975E 00 00 00 10                          DG ---------------- -----------1---- -1111-----1----- --------1---1111 ---------------- ----------------
+417   9762 78 20 00 8F
+417   9766 00 00 00 00
+418   976A 00 00 04 00                          DG ---------------- -----1---------- 111--111-----111 1--11-----11111- --11--11--11---- ----------------
+418   976E E7 07 98 3E
+418   9772 33 30 00 00
+419   9776 00 00 00 00                          DG ---------------- ---------------- -11111-1111111-- -11-111111--111- ---------------- ----------------
+419   977A 7D FC 6F CE
+419   977E 00 00 00 00
+420   9782
+421   9782 07 07 06 06  			DW 0x0707,          0x0606,          0x0606,          0x0606,          0x0606,          0x0707
+421   9786 06 06 06 06
+421   978A 06 06 07 07
+422   978E 07 07 06 06  			DW 0x0707,          0x0606,          0x0606,          0x0606,          0x0606,          0x0707
+422   9792 06 06 06 06
+422   9796 06 06 07 07
+423   979A
+424   979A 00 00 DF 7F  Tileset_10:             DG ---------------- 11-11111-1111111 ---------------- ---------------- ---------------- ----------------
+424   979E 00 00 00 00
+424   97A2 00 00 00 00
+425   97A6 04 12 7F EE                          DG -----1-----1--1- -1111111111-111- 111----11-1111-1 ---------------- ---------------- ----------------
+425   97AA E1 BD 00 00
+425   97AE 00 00 00 00
+426   97B2 40 80 7B BC                          DG -1------1------- -1111-111-1111-- 1111111111111111 ---------------- ---------------- ----------------
+426   97B6 FF FF 00 00
+426   97BA 00 00 00 00
+427   97BE 00 00 5E E8                          DG ---------------- -1-1111-111-1--- 11-11-1111111111 ---------------- ---------------- ----------------
+427   97C2 DB FF 00 00
+427   97C6 00 00 00 00
+428   97CA 00 00 FF F2                          DG ---------------- 111111111111--1- 111111111-1111-1 ---------------- ---------------- ----------------
+428   97CE FF BD 00 00
+428   97D2 00 00 00 00
+429   97D6 7F FF 5B 74                          DG -111111111111111 -1-11-11-111-1-- 1-11111111111111 ---------------- ---------------- ----------------
+429   97DA BF FF 00 00
+429   97DE 00 00 00 00
+430   97E2 60 83 FF E0                          DG -11-----1-----11 11111111111----- 11111-1111111111 ---------------- ---------------- ----------------
+430   97E6 FB FF 00 00
+430   97EA 00 00 00 00
+431   97EE 51 05 DD C1                          DG -1-1---1-----1-1 11-111-111-----1 111111111111-111 ---------------- ---------------- ----------------
+431   97F2 FF F7 00 00
+431   97F6 00 00 00 00
+432   97FA 4A 29 FF C8                          DG -1--1-1---1-1--1 1111111111--1--- 1-111111-1111111 ---------------- ---------------- ----------------
+432   97FE BF 7F 00 00
+432   9802 00 00 00 00
+433   9806 44 11 F7 A2                          DG -1---1-----1---1 1111-1111-1---1- 1111111111111111 ---------------- ---------------- ----------------
+433   980A FF FF 00 00
+433   980E 00 00 00 00
+434   9812 4A 29 7F 00                          DG -1--1-1---1-1--1 -1111111-------- 1111111111111111 ---------------- ---------------- ----------------
+434   9816 FF FF 00 00
+434   981A 00 00 00 00
+435   981E 51 45 5E 11                          DG -1-1---1-1---1-1 -1-1111----1---1 1111-11111111111 ---------------- ---------------- ----------------
+435   9822 F7 FF 00 00
+435   9826 00 00 00 00
+436   982A 60 83 7C 84                          DG -11-----1-----11 -11111--1----1-- 1111111111111111 ---------------- ---------------- ----------------
+436   982E FF FF 00 00
+436   9832 00 00 00 00
+437   9836 7F FF 78 20                          DG -111111111111111 -1111-----1----- 111111111111-111 ---------------- ---------------- ----------------
+437   983A FF F7 00 00
+437   983E 00 00 00 00
+438   9842 00 00 E7 07                          DG ---------------- 111--111-----111 1111111111111111 ---------------- ---------------- ----------------
+438   9846 FF FF 00 00
+438   984A 00 00 00 00
+439   984E 00 00 7D FC                          DG ---------------- -11111-1111111-- 1111111111111111 ---------------- ---------------- ----------------
+439   9852 FF FF 00 00
+439   9856 00 00 00 00
+440   985A
+441   985A 05 05 06 06  			DW 0x0505,          0x0606,          0x0606,          0x0707,          0x0707,          0x0707
+441   985E 06 06 07 07
+441   9862 07 07 07 07
+442   9866 05 05 06 06  			DW 0x0505,          0x0606,          0x0606,          0x0707,          0x0707,          0x0707
+442   986A 06 06 07 07
+442   986E 07 07 07 07
+443   9872
+444   9872 00 00 FF FF  Tileset_11:             DG ---------------- 1111111111111111 ---------------- -1111111-1111111 ---------------- ----------------
+444   9876 00 00 7F 7F
+444   987A 00 00 00 00
+445   987E 00 00 FF FF                          DG ---------------- 1111111111111111 ---------------- -1111111-111111- ---------------- ----------------
+445   9882 00 00 7F 7E
+445   9886 00 00 00 00
+446   988A 00 00 FF FF                          DG ---------------- 1111111111111111 ---------------- -1111111-1111111 -----------1---- -----------1----
+446   988E 00 00 7F 7F
+446   9892 00 10 00 10
+447   9896 00 00 FF FF                          DG ---------------- 1111111111111111 ---------------- ---------------- --1------------- --1-------------
+447   989A 00 00 00 00
+447   989E 20 00 20 00
+448   98A2 00 00 FF FF                          DG ---------------- 1111111111111111 ------11-------- 1111-11111111-11 ---------------- ----------------
+448   98A6 03 00 F7 FB
+448   98AA 00 00 00 00
+449   98AE 00 00 FF FF                          DG ---------------- 1111111111111111 ------11-------- 1111-11111111-11 ------1-------1- ------1--------1
+449   98B2 03 00 F7 FB
+449   98B6 02 02 02 01
+450   98BA 00 00 FF FF                          DG ---------------- 1111111111111111 ------11-------- 1111-11111111-11 ------------1111 111---------1111
+450   98BE 03 00 F7 FB
+450   98C2 00 0F E0 0F
+451   98C6 00 00 FF FF                          DG ---------------- 1111111111111111 ------11-------- ---------------- 1----------11111 111111111--11111
+451   98CA 03 00 00 00
+451   98CE 80 1F FF 9F
+452   98D2 00 00 FF FF                          DG ---------------- 1111111111111111 ------11-------- -1111111-1111111 1111---111111111 1111111111111111
+452   98D6 03 00 7F 7F
+452   98DA F1 FF FF FF
+453   98DE 00 00 FF FF                          DG ---------------- 1111111111111111 ------11-------- -1111111-1111111 1111111111111111 1111111111111111
+453   98E2 03 00 7F 7F
+453   98E6 FF FF FF FF
+454   98EA 00 00 FF FF                          DG ---------------- 1111111111111111 ---------------- -1111111-1111111 1111111111111111 1111111111111111
+454   98EE 00 00 7F 7F
+454   98F2 FF FF FF FF
+455   98F6 00 00 FF FF                          DG ---------------- 1111111111111111 ---------------- ---------------- 1111111111111111 1111111111111111
+455   98FA 00 00 00 00
+455   98FE FF FF FF FF
+456   9902 00 00 FF FF                          DG ---------------- 1111111111111111 ---------------- 1111-11111111-11 1111111111111111 1111111111111111
+456   9906 00 00 F7 FB
+456   990A FF FF FF FF
+457   990E 00 00 FF FF                          DG ---------------- 1111111111111111 ---------------- 1111-11111111-11 1111111111111111 1111111111111111
+457   9912 00 00 F7 FB
+457   9916 FF FF FF FF
+458   991A 00 00 FF FF                          DG ---------------- 1111111111111111 ---------------- 1111-11111111-11 1111111111111111 1111111111111111
+458   991E 00 00 F7 FB
+458   9922 FF FF FF FF
+459   9926 00 00 FF FF                          DG ---------------- 1111111111111111 ---------------- ---------------- 1111111111111111 1111111111111111
+459   992A 00 00 00 00
+459   992E FF FF FF FF
+460   9932
+461   9932 07 07 06 06  			DW 0x0707,          0x0606,          0x0707,          0x4202,          0x0606,          0x0606
+461   9936 07 07 02 42
+461   993A 06 06 06 06
+462   993E 07 07 06 06  			DW 0x0707,          0x0606,          0x0707,          0x4202,          0x0606,          0x0606
+462   9942 07 07 02 42
+462   9946 06 06 06 06
+463   994A
+464   994A              ; This is the lookup table for each pixel shift of the sprite - 8 entries
+465   994A              ; We only have 4 shifted definitions to save space (and my time hand-creating the sprite)
+466   994A              ; so each entry is repeated twice
+467   994A              ;
+468   994A              ; The first two bytes are the effective sprite width (in characters) and height (in pixels)
+469   994A              ;
+470   994A 02 10        Sprite_Bubble:		DB 2,16
+470   994C 5C 99 5C 99    DW Sprite_Bubble_0,Sprite_Bubble_0,Sprite_Bubble_2,Sprite_Bubble_2,Sprite_Bubble_4,Sprite_Bubble_4,Sprite_Bubble_6,Sprite_Bubble_6
+470   9950 BC 99 BC 99
+470   9954 1C 9A 1C 9A
+470   9958 7C 9A 7C 9A
+471   995C
+472   995C              ; And the actual graphics that table points to are here - with the mask and data interleaved for
+473   995C              ; efficiency when drawing the sprites
+474   995C              ;
+475   995C              ; Pixel positions 0
+476   995C              ;
+477   995C FF 00 FF 00  Sprite_Bubble_0:	DB %11111111, %00000000, %11111111, %00000000, %11111111, %00000000
+477   9960 FF 00
+478   9962 F0 03 0F C0  			DB %11110000, %00000011, %00001111, %11000000, %11111111, %00000000
+478   9966 FF 00
+479   9968 E0 0C 07 30  			DB %11100000, %00001100, %00000111, %00110000, %11111111, %00000000
+479   996C FF 00
+480   996E C0 10 03 08  			DB %11000000, %00010000, %00000011, %00001000, %11111111, %00000000
+480   9972 FF 00
+481   9974 80 26 01 04  			DB %10000000, %00100110, %00000001, %00000100, %11111111, %00000000
+481   9978 FF 00
+482   997A 80 28 01 04  			DB %10000000, %00101000, %00000001, %00000100, %11111111, %00000000
+482   997E FF 00
+483   9980 00 48 00 02  			DB %00000000, %01001000, %00000000, %00000010, %11111111, %00000000
+483   9984 FF 00
+484   9986 00 40 00 02  			DB %00000000, %01000000, %00000000, %00000010, %11111111, %00000000
+484   998A FF 00
+485   998C 00 40 00 02  			DB %00000000, %01000000, %00000000, %00000010, %11111111, %00000000
+485   9990 FF 00
+486   9992 00 40 00 02  			DB %00000000, %01000000, %00000000, %00000010, %11111111, %00000000
+486   9996 FF 00
+487   9998 80 20 01 04  			DB %10000000, %00100000, %00000001, %00000100, %11111111, %00000000
+487   999C FF 00
+488   999E 80 20 01 04  			DB %10000000, %00100000, %00000001, %00000100, %11111111, %00000000
+488   99A2 FF 00
+489   99A4 C0 10 03 08  			DB %11000000, %00010000, %00000011, %00001000, %11111111, %00000000
+489   99A8 FF 00
+490   99AA E0 0C 07 30  			DB %11100000, %00001100, %00000111, %00110000, %11111111, %00000000
+490   99AE FF 00
+491   99B0 F0 03 0F C0  			DB %11110000, %00000011, %00001111, %11000000, %11111111, %00000000
+491   99B4 FF 00
+492   99B6 FF 00 FF 00  			DB %11111111, %00000000, %11111111, %00000000, %11111111, %00000000
+492   99BA FF 00
+493   99BC
+494   99BC              ; Pixel position 2
+495   99BC              ;
+496   99BC FF 00 FF 00  Sprite_Bubble_2:	DB %11111111, %00000000, %11111111, %00000000, %11111111, %00000000
+496   99C0 FF 00
+497   99C2 FC 00 03 F0  			DB %11111100, %00000000, %00000011, %11110000, %11111111, %00000000
+497   99C6 FF 00
+498   99C8 F8 03 01 0C  			DB %11111000, %00000011, %00000001, %00001100, %11111111, %00000000
+498   99CC FF 00
+499   99CE F0 04 00 02  			DB %11110000, %00000100, %00000000, %00000010, %11111111, %00000000
+499   99D2 FF 00
+500   99D4 E0 09 00 81  			DB %11100000, %00001001, %00000000, %10000001, %11111111, %00000000
+500   99D8 FF 00
+501   99DA E0 0A 00 01  			DB %11100000, %00001010, %00000000, %00000001, %01111111, %00000000
+501   99DE 7F 00
+502   99E0 C0 12 00 00  			DB %11000000, %00010010, %00000000, %00000000, %00111111, %10000000
+502   99E4 3F 80
+503   99E6 C0 10 00 00  			DB %11000000, %00010000, %00000000, %00000000, %00111111, %10000000
+503   99EA 3F 80
+504   99EC C0 10 00 00  			DB %11000000, %00010000, %00000000, %00000000, %00111111, %10000000
+504   99F0 3F 80
+505   99F2 C0 10 00 00  			DB %11000000, %00010000, %00000000, %00000000, %00111111, %10000000
+505   99F6 3F 80
+506   99F8 E0 08 00 01  			DB %11100000, %00001000, %00000000, %00000001, %01111111, %00000000
+506   99FC 7F 00
+507   99FE E0 08 00 01  			DB %11100000, %00001000, %00000000, %00000001, %11111111, %00000000
+507   9A02 FF 00
+508   9A04 F0 04 00 02  			DB %11110000, %00000100, %00000000, %00000010, %11111111, %00000000
+508   9A08 FF 00
+509   9A0A F8 03 01 0C  			DB %11111000, %00000011, %00000001, %00001100, %11111111, %00000000
+509   9A0E FF 00
+510   9A10 FC 00 03 F0  			DB %11111100, %00000000, %00000011, %11110000, %11111111, %00000000
+510   9A14 FF 00
+511   9A16 FF 00 FF 00  			DB %11111111, %00000000, %11111111, %00000000, %11111111, %00000000
+511   9A1A FF 00
+512   9A1C
+513   9A1C              ; Pixel position 4
+514   9A1C              ;
+515   9A1C FF 00 FF 00  Sprite_Bubble_4:	DB %11111111, %00000000, %11111111, %00000000, %11111111, %00000000
+515   9A20 FF 00
+516   9A22 FF 00 00 3C  			DB %11111111, %00000000, %00000000, %00111100, %11111111, %00000000
+516   9A26 FF 00
+517   9A28 FE 00 00 C3  			DB %11111110, %00000000, %00000000, %11000011, %01111111, %00000000
+517   9A2C 7F 00
+518   9A2E FC 01 00 00  			DB %11111100, %00000001, %00000000, %00000000, %00111111, %10000000
+518   9A32 3F 80
+519   9A34 F8 02 00 60  			DB %11111000, %00000010, %00000000, %01100000, %00011111, %01000000
+519   9A38 1F 40
+520   9A3A F8 02 00 80  			DB %11111000, %00000010, %00000000, %10000000, %00011111, %01000000
+520   9A3E 1F 40
+521   9A40 F0 04 00 80  			DB %11110000, %00000100, %00000000, %10000000, %00001111, %00100000
+521   9A44 0F 20
+522   9A46 F0 04 00 00  			DB %11110000, %00000100, %00000000, %00000000, %00001111, %00100000
+522   9A4A 0F 20
+523   9A4C F0 04 00 00  			DB %11110000, %00000100, %00000000, %00000000, %00001111, %00100000
+523   9A50 0F 20
+524   9A52 F0 04 00 00  			DB %11110000, %00000100, %00000000, %00000000, %00011111, %00100000
+524   9A56 1F 20
+525   9A58 F8 02 00 00  			DB %11111000, %00000010, %00000000, %00000000, %00011111, %01000000
+525   9A5C 1F 40
+526   9A5E F8 02 00 00  			DB %11111000, %00000010, %00000000, %00000000, %00011111, %01000000
+526   9A62 1F 40
+527   9A64 FC 01 00 00  			DB %11111100, %00000001, %00000000, %00000000, %00111111, %10000000
+527   9A68 3F 80
+528   9A6A FE 00 00 C3  			DB %11111110, %00000000, %00000000, %11000011, %01111111, %00000000
+528   9A6E 7F 00
+529   9A70 FF 00 00 3C  			DB %11111111, %00000000, %00000000, %00111100, %11111111, %00000000
+529   9A74 FF 00
+530   9A76 FF 00 FF 00  			DB %11111111, %00000000, %11111111, %00000000, %11111111, %00000000
+530   9A7A FF 00
+531   9A7C
+532   9A7C              ; Pixel position 6
+533   9A7C              ;
+534   9A7C FF 00 FF 00  Sprite_Bubble_6:	DB %11111111, %00000000, %11111111, %00000000, %11111111, %00000000
+534   9A80 FF 00
+535   9A82 FF 00 E0 0F  			DB %11111111, %00000000, %11100000, %00001111, %11111111, %00000000
+535   9A86 FF 00
+536   9A88 FF 00 C0 30  			DB %11111111, %00000000, %11000000, %00110000, %00011111, %11000000
+536   9A8C 1F C0
+537   9A8E FF 00 80 40  			DB %11111111, %00000000, %10000000, %01000000, %00001111, %00100000
+537   9A92 0F 20
+538   9A94 FF 00 00 98  			DB %11111111, %00000000, %00000000, %10011000, %00000111, %00010000
+538   9A98 07 10
+539   9A9A FE 00 00 A0  			DB %11111110, %00000000, %00000000, %10100000, %00000111, %00010000
+539   9A9E 07 10
+540   9AA0 FE 01 00 20  			DB %11111110, %00000001, %00000000, %00100000, %00000011, %00001000
+540   9AA4 03 08
+541   9AA6 FE 01 00 00  			DB %11111110, %00000001, %00000000, %00000000, %00000011, %00001000
+541   9AAA 03 08
+542   9AAC FE 01 00 00  			DB %11111110, %00000001, %00000000, %00000000, %00000011, %00001000
+542   9AB0 03 08
+543   9AB2 FE 01 00 00  			DB %11111110, %00000001, %00000000, %00000000, %00000011, %00001000
+543   9AB6 03 08
+544   9AB8 FE 00 00 80  			DB %11111110, %00000000, %00000000, %10000000, %00000111, %00010000
+544   9ABC 07 10
+545   9ABE FF 00 00 80  			DB %11111111, %00000000, %00000000, %10000000, %00000111, %00010000
+545   9AC2 07 10
+546   9AC4 FF 00 80 40  			DB %11111111, %00000000, %10000000, %01000000, %00001111, %00100000
+546   9AC8 0F 20
+547   9ACA FF 00 C0 30  			DB %11111111, %00000000, %11000000, %00110000, %00011111, %11000000
+547   9ACE 1F C0
+548   9AD0 FF 00 E0 0F  			DB %11111111, %00000000, %11100000, %00001111, %11111111, %00000000
+548   9AD4 FF 00
+549   9AD6 FF 00 FF 00  			DB %11111111, %00000000, %11111111, %00000000, %11111111, %00000000
+549   9ADA FF 00
+550   9ADC
+551   9ADC              Code_Length:		EQU $-Code_Start+1
+552   9ADC
+553   9ADC              			SAVESNA "Demo/demo_scroll.sna", Code_Start
+554   9ADC
+# file closed: C:\work\oldtyper\src\speccy\demo-toolchain\demo\demo_scroll.z80
